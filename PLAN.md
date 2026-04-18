@@ -144,7 +144,7 @@ INS-036 already implements the session/mode mechanics. This phase documents the 
 **Repo**: this repo
 
 - [x] **INS-007: Chat & Hybrid Game Maker Protocol — spec** (`docs/extensions/game-maker-protocol.md`): state machine, dice primitives, branching narrative, GM/player roles, scope limits.
-- [ ] **INS-007: Chat & Hybrid Game Maker Protocol — implementation** — `packages/game-maker/` host extension skeleton.
+- [x] **INS-007: Chat & Hybrid Game Maker Protocol — implementation** — `packages/game-maker/` host extension skeleton (parser, dice, interpreter; 50 tests). Worktree: `feat/ins-007-game-maker-skel-b4e1`.
 
 ### Phase 6 — Extensions
 **Status**: INS-002 complete; INS-003..008 specs landed, implementations pending
@@ -153,7 +153,7 @@ INS-036 already implements the session/mode mechanics. This phase documents the 
 - [x] **INS-002: Worldview — Config Menu** — In-app config menu for API keys / service connections (`packages/worldview/src/config.ts` + UI in `src/index.ts`). 24 new tests, 51/51 pass. Supported modes: Party, Display, Service.
 
 - [x] **INS-003: Chess & Checkers — spec** (`docs/extensions/specs/chess-checkers.md`): shared board engine, minimax bot tiers.
-- [ ] **INS-003: Chess & Checkers — implementation** — Party, Display, Service modes.
+- [ ] **INS-003: Chess & Checkers — implementation** — Party, Display, Service modes. _Partial: engines, bots, pairing, selector, minimal board UI landed on `feat/ins-003-chess-checkers-pilot-d2c8` (34 tests, perft-3 = 8902). Mode-specific surfaces blocked on Phase 1 shell SDK in main concord repo._
 
 - [x] **INS-004: Blood on the Clocktower — spec** (`docs/extensions/specs/blood-on-the-clocktower.md`): phases, roles, bot-storyteller.
 - [ ] **INS-004: Blood on the Clocktower — implementation** — Party, Chat, Hybrid modes.
