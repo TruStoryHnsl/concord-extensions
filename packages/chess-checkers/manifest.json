@@ -1,0 +1,11 @@
+{
+  "id": "com.concord.chess-checkers",
+  "version": "0.1.0",
+  "name": "Chess & Checkers",
+  "description": "Chess and Checkers with shared board engine and minimax bots across four difficulty tiers.",
+  "pricing": "free",
+  "entry": "index.html",
+  "modes": ["party", "display", "service"],
+  "permissions": ["state_events"],
+  "minConcordVersion": "0.1.0"
+}
