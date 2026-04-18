@@ -6,7 +6,19 @@
  *
  * @see docs/extensions/session-model.md
  * @see docs/extensions/shell-api.md
+ * @see docs/extensions/ux-modes.md
  */
+
+import {
+  WORLDVIEW_CONFIG_SPEC,
+  readConfig,
+  writeConfig,
+  clearConfig,
+  validateConfig,
+  maskSecret,
+  type ConfigValues,
+  type KVStore,
+} from "./config"
 
 // ─── Types (exported) ─────────────────────────────────────────────────────
 
@@ -156,6 +168,15 @@ function renderDOM(state: WorldviewState): void {
   info.appendChild(document.createElement("br"))
   info.appendChild(el("span", {}, `Host: ${state.host ? displayName(state.host) : "—"}`))
   header.appendChild(info)
+
+  const settingsBtn = el("button", {
+    id: "btn-settings",
+    class: "btn btn-ghost",
+    "aria-label": "Open settings",
+  }, "Settings")
+  settingsBtn.addEventListener("click", () => openConfigPanel())
+  header.appendChild(settingsBtn)
+
   root.appendChild(header)
 
   const section = el("section", { class: "counter-section" })
@@ -212,6 +233,124 @@ function handleReset(): void {
   state = { ...state, counter: 0 }
   renderDOM(state)
   sendAction("admin_commands", { op: "reset_counter" })
+}
+
+// ─── Config panel (INS-002) ───────────────────────────────────────────────
+
+function getConfigStore(): KVStore | null {
+  try {
+    // Vitest runs tests via src/__tests__ with a jsdom environment that DOES
+    // expose localStorage, but we guard anyway so code fails gracefully in
+    // environments that don't.
+    return typeof localStorage !== "undefined" ? localStorage : null
+  } catch {
+    return null
+  }
+}
+
+function openConfigPanel(): void {
+  const store = getConfigStore()
+  if (!store) return
+  const existing = document.getElementById("worldview-config-panel")
+  if (existing) {
+    existing.remove()
+    return
+  }
+
+  const values: ConfigValues = { ...readConfig(store, WORLDVIEW_CONFIG_SPEC.extensionId) }
+
+  const panel = el("div", {
+    id: "worldview-config-panel",
+    class: "config-panel",
+    role: "dialog",
+    "aria-label": "Worldview settings",
+  })
+  panel.appendChild(el("h2", {}, "Settings"))
+
+  const form = document.createElement("form")
+  form.addEventListener("submit", (e) => e.preventDefault())
+
+  const inputsByKey = new Map<string, HTMLInputElement>()
+  const errorSlotsByKey = new Map<string, HTMLElement>()
+
+  for (const field of WORLDVIEW_CONFIG_SPEC.fields) {
+    const row = el("div", { class: "config-row" })
+    const label = el("label", { for: `cfg-${field.key}` }, field.label)
+    row.appendChild(label)
+
+    const input = el("input", {
+      id: `cfg-${field.key}`,
+      name: field.key,
+      type: field.type === "secret" ? "password" : "text",
+      value: values[field.key] ?? "",
+      "data-field-type": field.type,
+    }) as HTMLInputElement
+    input.value = values[field.key] ?? ""
+    input.addEventListener("input", () => {
+      values[field.key] = input.value
+    })
+    row.appendChild(input)
+    inputsByKey.set(field.key, input)
+
+    if (field.type === "secret" && (values[field.key] ?? "").length > 0) {
+      const mask = el("p", { class: "config-masked" }, `Stored: ${maskSecret(values[field.key] ?? "")}`)
+      row.appendChild(mask)
+    }
+    if (field.help) row.appendChild(el("p", { class: "config-help" }, field.help))
+
+    const err = el("p", { class: "config-error" })
+    err.hidden = true
+    errorSlotsByKey.set(field.key, err)
+    row.appendChild(err)
+
+    form.appendChild(row)
+  }
+
+  const actions = el("div", { class: "config-actions" })
+  const saveBtn = el("button", { id: "btn-config-save", type: "button", class: "btn btn-primary" }, "Save")
+  const clearBtn = el("button", { id: "btn-config-clear", type: "button", class: "btn btn-danger" }, "Clear")
+  const cancelBtn = el("button", { id: "btn-config-cancel", type: "button", class: "btn btn-ghost" }, "Cancel")
+
+  saveBtn.addEventListener("click", () => {
+    const errors = validateConfig(WORLDVIEW_CONFIG_SPEC, values)
+    // Reset error UI
+    for (const slot of errorSlotsByKey.values()) {
+      slot.textContent = ""
+      slot.hidden = true
+    }
+    if (Object.keys(errors).length > 0) {
+      for (const [k, msg] of Object.entries(errors)) {
+        const slot = errorSlotsByKey.get(k)
+        if (slot) {
+          slot.textContent = msg
+          slot.hidden = false
+        }
+      }
+      return
+    }
+    writeConfig(store, WORLDVIEW_CONFIG_SPEC.extensionId, values)
+    panel.remove()
+  })
+
+  clearBtn.addEventListener("click", () => {
+    clearConfig(store, WORLDVIEW_CONFIG_SPEC.extensionId)
+    for (const input of inputsByKey.values()) input.value = ""
+    for (const k of Object.keys(values)) delete values[k]
+  })
+
+  cancelBtn.addEventListener("click", () => {
+    panel.remove()
+  })
+
+  actions.appendChild(saveBtn)
+  actions.appendChild(clearBtn)
+  actions.appendChild(cancelBtn)
+  form.appendChild(actions)
+
+  panel.appendChild(form)
+
+  const root = document.getElementById("worldview-root") ?? document.body
+  root.appendChild(panel)
 }
 
 // ─── Bootstrap ────────────────────────────────────────────────────────────
