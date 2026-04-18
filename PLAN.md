@@ -93,15 +93,15 @@ The extension SDK (`concord/client/src/extensions/sdk.ts`) stays in the main con
 ## Feature Roadmap
 
 ### Phase 0 — Scaffold + Worldview Migration
-**Status**: planned
+**Status**: complete
 **Plan**: `docs/superpowers/plans/2026-04-17-phase0-scaffold.md`
 **Repo**: this repo
 
-- [ ] pnpm workspaces root (`pnpm-workspace.yaml` + root `package.json`)
-- [ ] Migrate `worldview` from `concord/ext/worldview/` — refactor pure functions to be exported and testable
-- [ ] Vite build, vitest unit tests, pack script (`<id>@<version>.zip`)
-- [ ] GitHub Actions release pipeline (tag push → `.zip` → GitHub Release)
-- [ ] Remove `concord/ext/worldview/` from main concord repo
+- [x] pnpm workspaces root (`pnpm-workspace.yaml` + root `package.json`)
+- [x] Migrate `worldview` from `concord/ext/worldview/` — refactor pure functions to be exported and testable
+- [x] Vite build, vitest unit tests, pack script (`pnpm run bundle` → `<id>@<version>.zip`)
+- [x] GitHub Actions release pipeline (tag push → `.zip` → GitHub Release)
+- [x] Remove `concord/ext/worldview/` from main concord repo
 
 ### Phase 1 — Runtime Loader
 **Status**: planned
@@ -132,34 +132,40 @@ The Concord server learns to install, cache, and serve extension bundles.
 - [ ] Lives inside Concord Settings (unified settings shell, INS-012)
 
 ### Phase 4 — UX Mode Framework Documentation (INS-001)
-**Status**: planned
+**Status**: complete
 **Repo**: this repo
 
 INS-036 already implements the session/mode mechanics. This phase documents the mapping so extension authors know which mode to declare.
 
-- [ ] **INS-001: UX Mode Framework** — Write `docs/extensions/ux-modes.md` mapping Party/Display/Service/Chat/Hybrid → INS-036 session modes with examples. Serves as the canonical reference every extension spec links to.
+- [x] **INS-001: UX Mode Framework** — `docs/extensions/ux-modes.md` maps Party/Display/Service/Chat/Hybrid → INS-036 session modes. Canonical reference for all extension specs.
 
 ### Phase 5 — Game Maker Protocol (INS-007)
-**Status**: planned
+**Status**: spec complete, implementation pending
 **Repo**: this repo
 
-- [ ] **INS-007: Chat & Hybrid Game Maker Protocol** — Authoring protocol for custom tabletop-style games playable via Chat and Hybrid modes. Text-primary input; no complex display authoring. Must be expressive enough to run a full D&D campaign (branching narrative, state tracking, GM/player roles, dice resolution). Infrastructure only — not a user-facing display extension. Design alongside INS-001 docs.
+- [x] **INS-007: Chat & Hybrid Game Maker Protocol — spec** (`docs/extensions/game-maker-protocol.md`): state machine, dice primitives, branching narrative, GM/player roles, scope limits.
+- [ ] **INS-007: Chat & Hybrid Game Maker Protocol — implementation** — `packages/game-maker/` host extension skeleton.
 
 ### Phase 6 — Extensions
-**Status**: planned
+**Status**: INS-002 complete; INS-003..008 specs landed, implementations pending
 **Repo**: this repo
 
-- [ ] **INS-002: Worldview — Config Menu** — Add in-app config menu for API keys and external service connections. Local copy at `/home/corr/WorldView` — diff against repo before implementing to capture all existing changes. Supported modes: Party, Display, Service.
+- [x] **INS-002: Worldview — Config Menu** — In-app config menu for API keys / service connections (`packages/worldview/src/config.ts` + UI in `src/index.ts`). 24 new tests, 51/51 pass. Supported modes: Party, Display, Service.
 
-- [ ] **INS-003: Chess & Checkers** — Human vs. human and human vs. bot (multiple difficulty levels). Supported modes: Party, Display, Service.
+- [x] **INS-003: Chess & Checkers — spec** (`docs/extensions/specs/chess-checkers.md`): shared board engine, minimax bot tiers.
+- [ ] **INS-003: Chess & Checkers — implementation** — Party, Display, Service modes.
 
-- [ ] **INS-004: Blood on the Clocktower** — Full BotC implementation with bot-administered roles/phases (Chat Mode) and split narration display (Hybrid Mode). Supported modes: Party, Chat, Hybrid.
+- [x] **INS-004: Blood on the Clocktower — spec** (`docs/extensions/specs/blood-on-the-clocktower.md`): phases, roles, bot-storyteller.
+- [ ] **INS-004: Blood on the Clocktower — implementation** — Party, Chat, Hybrid modes.
 
-- [ ] **INS-005: Among Us Clone** — Social deduction game. Party Mode: per-user character view with movement during game phases. Hybrid Mode: shared map/event display alongside chatroom. Supported modes: Party, Hybrid.
+- [x] **INS-005: Among Us Clone — spec** (`docs/extensions/specs/among-us-clone.md`): room-graph movement, tasks, imposters, meetings.
+- [ ] **INS-005: Among Us Clone — implementation** — Party, Hybrid modes.
 
-- [ ] **INS-006: Card Game Suite** — Solitaire, Poker, Blackjack, Speed, Kings & Peasants, War under one extension with a shared card/deck engine. Each game individually selectable. Supported modes: Party, Display, Service, Hybrid.
+- [x] **INS-006: Card Game Suite — spec** (`docs/extensions/specs/card-game-suite.md`): shared card/deck/hand/pile engine, six games, per-game mode matrix.
+- [ ] **INS-006: Card Game Suite — implementation** — Party, Display, Service, Hybrid modes.
 
-- [ ] **INS-008: JackBox Clone** — Jackbox-style party game suite (prompt/response, voting, scoring loop). Full in-house implementation; no dependency on external Jackbox titles. Supported modes: Party.
+- [x] **INS-008: JackBox Clone — spec** (`docs/extensions/specs/jackbox-clone.md`): shared round state machine, five mini-games.
+- [ ] **INS-008: JackBox Clone — implementation** — Party mode.
 
 ### Phase 7 — SDK Extraction
 **Status**: deferred (post-advertising phase)
