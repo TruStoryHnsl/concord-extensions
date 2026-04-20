@@ -156,13 +156,13 @@ INS-036 already implements the session/mode mechanics. This phase documents the 
 - [ ] **INS-003: Chess & Checkers — implementation** — Party, Display, Service modes. _Partial: engines, bots, pairing, selector, minimal board UI landed on `feat/ins-003-chess-checkers-pilot-d2c8` (34 tests, perft-3 = 8902). Mode-specific surfaces blocked on Phase 1 shell SDK in main concord repo._
 
 - [x] **INS-004: Blood on the Clocktower — spec** (`docs/extensions/specs/blood-on-the-clocktower.md`): phases, roles, bot-storyteller.
-- [ ] **INS-004: Blood on the Clocktower — implementation** — Party, Chat, Hybrid modes.
+- [ ] **INS-004: Blood on the Clocktower — implementation** — Party, Chat, Hybrid modes. _Partial: engine core (phases, votes, deaths, effects, RNG, scripts) + 5 Trouble Brewing pilot roles (Washerwoman, Librarian, Investigator, Imp, Poisoner) on `feat/ins-004-botc-core-a7e3` (51 tests). Remaining 17 Trouble Brewing roles, Sects & Violets, Bad Moon Rising, and all mode UIs pending; UIs blocked on Phase 1 shell SDK in main concord repo._
 
 - [x] **INS-005: Among Us Clone — spec** (`docs/extensions/specs/among-us-clone.md`): room-graph movement, tasks, imposters, meetings.
 - [ ] **INS-005: Among Us Clone — implementation** — Party, Hybrid modes.
 
 - [x] **INS-006: Card Game Suite — spec** (`docs/extensions/specs/card-game-suite.md`): shared card/deck/hand/pile engine, six games, per-game mode matrix.
-- [ ] **INS-006: Card Game Suite — implementation** — Party, Display, Service, Hybrid modes.
+- [ ] **INS-006: Card Game Suite — implementation** — Party, Display, Service, Hybrid modes. _Partial: shared engine (card/deck/hand/pile/rng/types) + Solitaire pilot rules on `feat/ins-006-card-suite-engine-f9d2` (49 tests, deterministic seeded shuffle). Remaining 5 games (Hold'em, Blackjack, Speed, Kings & Peasants, War) and all mode UIs pending; UIs blocked on Phase 1 shell SDK in main concord repo._
 
 - [x] **INS-008: JackBox Clone — spec** (`docs/extensions/specs/jackbox-clone.md`): shared round state machine, five mini-games.
 - [ ] **INS-008: JackBox Clone — implementation** — Party mode.
