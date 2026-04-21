@@ -1,0 +1,11 @@
+{
+  "id": "com.concord.game-maker",
+  "version": "0.1.0",
+  "name": "Game Maker",
+  "description": "Host extension for the Chat & Hybrid Game Maker Protocol (INS-007). Loads .game documents as a narrator/referee.",
+  "pricing": "free",
+  "entry": "index.html",
+  "modes": ["chat", "hybrid"],
+  "permissions": ["state_events", "matrix.read", "matrix.send", "matrix.send_to_device"],
+  "minConcordVersion": "0.1.0"
+}
