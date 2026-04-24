@@ -1,0 +1,98 @@
+{
+  "catalog_version": 1,
+  "extensions": [
+    {
+      "id": "com.concord.botc",
+      "version": "0.1.0",
+      "name": "Blood on the Clocktower",
+      "description": "Social-deduction engine with Party/Chat/Hybrid support. Ships Trouble Brewing pilot roles.",
+      "pricing": "one_time",
+      "modes": [
+        "party",
+        "chat",
+        "hybrid"
+      ],
+      "permissions": [
+        "state_events",
+        "send_to_device",
+        "matrix.read",
+        "matrix.send"
+      ],
+      "min_concord_version": "0.1.0",
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/botc/com.concord.botc@0.1.0.zip",
+      "bundle_size_bytes": 1289
+    },
+    {
+      "id": "com.concord.card-suite",
+      "version": "0.1.0",
+      "name": "Card Game Suite",
+      "description": "Six card games (Solitaire, Hold'em, Blackjack, Speed, Kings & Peasants, War) under one shared engine.",
+      "pricing": "one_time",
+      "modes": [
+        "party",
+        "display",
+        "service",
+        "hybrid"
+      ],
+      "permissions": [
+        "state_events",
+        "send_to_device"
+      ],
+      "min_concord_version": "0.1.0",
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/card-suite/com.concord.card-suite@0.1.0.zip",
+      "bundle_size_bytes": 1291
+    },
+    {
+      "id": "com.concord.chess-checkers",
+      "version": "0.1.0",
+      "name": "Chess & Checkers",
+      "description": "Chess and Checkers with shared board engine and minimax bots across four difficulty tiers.",
+      "pricing": "free",
+      "modes": [
+        "party",
+        "display",
+        "service"
+      ],
+      "permissions": [
+        "state_events"
+      ],
+      "min_concord_version": "0.1.0",
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/chess-checkers/com.concord.chess-checkers@0.1.0.zip",
+      "bundle_size_bytes": 2041
+    },
+    {
+      "id": "com.concord.game-maker",
+      "version": "0.1.0",
+      "name": "Game Maker",
+      "description": "Host extension for the Chat & Hybrid Game Maker Protocol (INS-007). Loads .game documents as a narrator/referee.",
+      "pricing": "free",
+      "modes": [
+        "chat",
+        "hybrid"
+      ],
+      "permissions": [
+        "state_events",
+        "matrix.read",
+        "matrix.send",
+        "matrix.send_to_device"
+      ],
+      "min_concord_version": "0.1.0",
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/game-maker/com.concord.game-maker@0.1.0.zip",
+      "bundle_size_bytes": 7387
+    },
+    {
+      "id": "com.concord.worldview",
+      "version": "0.1.0",
+      "name": "Worldview",
+      "description": "Shared counter reference implementation of the INS-036 extension session model.",
+      "pricing": "free",
+      "modes": null,
+      "permissions": [
+        "state_events"
+      ],
+      "min_concord_version": "0.1.0",
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/worldview/com.concord.worldview@0.1.0.zip",
+      "bundle_size_bytes": 3676
+    }
+  ]
+}
