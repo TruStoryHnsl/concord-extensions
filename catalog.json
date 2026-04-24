@@ -119,7 +119,7 @@
       ],
       "min_concord_version": "0.5.0",
       "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/worldview-map/com.concord.worldview-map@0.1.0.zip",
-      "bundle_size_bytes": 567463,
+      "bundle_size_bytes": 570934,
       "needs_proxy": [
         "opensky",
         "sentinel",
