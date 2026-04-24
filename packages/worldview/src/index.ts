@@ -9,6 +9,7 @@
  * @see docs/extensions/ux-modes.md
  */
 
+import "./styles.css"
 import {
   WORLDVIEW_CONFIG_SPEC,
   readConfig,

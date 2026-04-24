@@ -92,7 +92,7 @@
       ],
       "min_concord_version": "0.1.0",
       "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/worldview/com.concord.worldview@0.1.0.zip",
-      "bundle_size_bytes": 3676
+      "bundle_size_bytes": 5230
     }
   ]
 }
