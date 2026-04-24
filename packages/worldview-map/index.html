@@ -1,0 +1,328 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <link rel="icon" href="data:,">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WORLDVIEW — OSINT Command Center</title>
+  <link rel="stylesheet" href="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Widgets/widgets.css">
+  <link rel="stylesheet" href="styles/main.css">
+</head>
+<body data-mode="nvg">
+
+  <div id="app">
+
+    <!-- Cesium Globe -->
+    <div id="cesiumContainer"></div>
+    <div id="compass" title="Click to orient north">
+      <svg viewBox="0 0 100 100" width="70" height="70">
+        <circle cx="50" cy="50" r="46" fill="none" stroke="rgba(0,255,65,0.25)" stroke-width="1.5"/>
+        <circle cx="50" cy="50" r="35" fill="none" stroke="rgba(0,255,65,0.10)" stroke-width="0.5"/>
+        <!-- Cardinal ticks -->
+        <line x1="50" y1="6"  x2="50" y2="14" stroke="rgba(0,255,65,0.6)" stroke-width="1.5"/>
+        <line x1="50" y1="86" x2="50" y2="94" stroke="rgba(0,255,65,0.3)" stroke-width="1"/>
+        <line x1="6"  y1="50" x2="14" y2="50" stroke="rgba(0,255,65,0.3)" stroke-width="1"/>
+        <line x1="86" y1="50" x2="94" y2="50" stroke="rgba(0,255,65,0.3)" stroke-width="1"/>
+        <!-- North arrow -->
+        <polygon points="50,10 44,30 50,24 56,30" fill="#00ff41" opacity="0.85"/>
+        <!-- South arrow -->
+        <polygon points="50,90 44,70 50,76 56,70" fill="rgba(0,255,65,0.2)"/>
+        <!-- N label -->
+        <text x="50" y="46" text-anchor="middle" fill="#00ff41" font-size="11" font-family="Courier New" font-weight="bold" opacity="0.9">N</text>
+      </svg>
+    </div>
+
+    <!-- Visual mode overlays -->
+    <div id="overlay-nvg"  class="vfx-overlay"></div>
+    <div id="overlay-flir" class="vfx-overlay"></div>
+    <div id="overlay-crt"  class="vfx-overlay"></div>
+
+    <!-- ── TOP BAR ─────────────────────────────────────────── -->
+    <header id="topbar">
+      <div class="tb-main">
+        <div class="tb-left">
+          <span class="brand">WORLDVIEW</span>
+          <span class="brand-sub">// OSINT COMMAND CENTER</span>
+        </div>
+        <div class="tb-center">
+          <span class="live-dot"></span>
+          <span class="live-label">LIVE</span>
+          <span id="clock" class="clock">--:--:-- UTC</span>
+        </div>
+        <div class="tb-right">
+          <span class="coord-item">LAT <span id="coord-lat" class="coord-val">--.---</span></span>
+          <span class="coord-sep">|</span>
+          <span class="coord-item">LON <span id="coord-lon" class="coord-val">--.---</span></span>
+          <span class="coord-sep">|</span>
+          <span class="coord-item">ALT <span id="coord-alt" class="coord-val">---</span> km</span>
+        </div>
+      </div>
+      <div id="tz-strip">
+        <span class="tz-item" data-tz="America/New_York"    data-label="NYC"><span class="tz-label">NYC</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="America/Sao_Paulo"   data-label="SAO"><span class="tz-label">SAO</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="Europe/London"       data-label="LON"><span class="tz-label">LON</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="Europe/Paris"        data-label="PAR"><span class="tz-label">PAR</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="Europe/Moscow"       data-label="MSK"><span class="tz-label">MSK</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="Asia/Tehran"         data-label="TRN"><span class="tz-label">TRN</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="Asia/Dubai"          data-label="DXB"><span class="tz-label">DXB</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="Asia/Kolkata"        data-label="DEL"><span class="tz-label">DEL</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="Asia/Shanghai"       data-label="BEI"><span class="tz-label">BEI</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="Asia/Tokyo"          data-label="TOK"><span class="tz-label">TOK</span><span class="tz-time">--:--</span></span>
+        <span class="tz-sep">·</span>
+        <span class="tz-item" data-tz="Australia/Sydney"    data-label="SYD"><span class="tz-label">SYD</span><span class="tz-time">--:--</span></span>
+      </div>
+    </header>
+
+    <!-- ── LEFT PANEL: DATA LAYERS ──────────────────────────── -->
+    <button class="panel-collapse-btn" id="collapse-left" title="Collapse panel">&lsaquo;</button>
+    <aside id="panel-layers">
+      <div class="panel-header">
+        <span class="panel-title">DATA LAYERS</span>
+        <span class="panel-badge" id="badge-active">0 ACTIVE</span>
+      </div>
+
+      <div class="layer-list">
+
+        <div class="layer-row" data-layer="satellites">
+          <div class="layer-toggle" id="toggle-satellites"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">SATELLITES</span>
+            <span class="layer-src">CelesTrak TLE</span>
+          </div>
+          <span class="layer-count" id="count-satellites">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="flights">
+          <div class="layer-toggle" id="toggle-flights"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">COMM FLIGHTS</span>
+            <span class="layer-src">OpenSky</span>
+          </div>
+          <span class="layer-count" id="count-flights">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="military">
+          <div class="layer-toggle" id="toggle-military"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">MIL FLIGHTS</span>
+            <span class="layer-src">adsb.lol</span>
+          </div>
+          <span class="layer-count" id="count-military">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="maritime">
+          <div class="layer-toggle" id="toggle-maritime"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">MARITIME</span>
+            <span class="layer-src">AIS / VesselFinder</span>
+          </div>
+          <span class="layer-count" id="count-maritime">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="sentinel">
+          <div class="layer-toggle" id="toggle-sentinel"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">SENTINEL IMINT</span>
+            <span class="layer-src">Copernicus / ESA</span>
+          </div>
+          <span class="layer-count" id="count-sentinel">—</span>
+        </div>
+
+        <div id="sentinel-controls">
+          <div class="sen-date-row">
+            <span class="sen-label">DATE</span>
+            <input type="date" id="sen-date" class="sen-date-input">
+            <button id="sen-date-clear" class="sen-clear-btn" title="Use rolling 30-day window">CLR</button>
+          </div>
+          <div class="sen-mode-grid">
+            <button class="sen-mode-btn active" data-sen-mode="OPT">OPT</button>
+            <button class="sen-mode-btn" data-sen-mode="NIR">NIR</button>
+            <button class="sen-mode-btn" data-sen-mode="SWIR">SWIR</button>
+            <button class="sen-mode-btn" data-sen-mode="NDVI">NDVI</button>
+          </div>
+        </div>
+
+        <div class="layer-row" data-layer="jamming">
+          <div class="layer-toggle" id="toggle-jamming"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">GPS JAMMING</span>
+            <span class="layer-src">GPSJam.org</span>
+          </div>
+          <span class="layer-count" id="count-jamming">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="seismic">
+          <div class="layer-toggle" id="toggle-seismic"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">SEISMIC</span>
+            <span class="layer-src">USGS Feed</span>
+          </div>
+          <span class="layer-count" id="count-seismic">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="weather">
+          <div class="layer-toggle" id="toggle-weather"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">WEATHER</span>
+            <span class="layer-src">Iowa State NEXRAD</span>
+          </div>
+          <span class="layer-count" id="count-weather">—</span>
+        </div>
+
+        <div class="layer-row" data-layer="traffic">
+          <div class="layer-toggle" id="toggle-traffic"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">STREET TRAFFIC</span>
+            <span class="layer-src">OpenStreetMap</span>
+          </div>
+          <span class="layer-count" id="count-traffic">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="cctv">
+          <div class="layer-toggle" id="toggle-cctv"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">CCTV FEEDS</span>
+            <span class="layer-src">TfL + AMOS Global</span>
+          </div>
+          <span class="layer-count" id="count-cctv">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="ports">
+          <div class="layer-toggle" id="toggle-ports"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">GLOBAL PORTS</span>
+            <span class="layer-src">HDX / NGA WPI</span>
+          </div>
+          <span class="layer-count" id="count-ports">0</span>
+        </div>
+
+      </div>
+
+      <div class="panel-footer">
+        <span class="total-label">TRACKED</span>
+        <span id="total-objects" class="total-val">0</span>
+      </div>
+    </aside>
+
+    <!-- ── RIGHT PANEL ───────────────────────────────────────── -->
+    <button class="panel-collapse-btn" id="collapse-right" title="Collapse panel">&rsaquo;</button>
+    <aside id="panel-right">
+      <div class="panel-header">
+        <span class="panel-title">MAP VIEW</span>
+      </div>
+      <div class="mode-grid">
+        <button class="scene-btn active" id="btn-scene-3d">3D GLOBE</button>
+        <button class="scene-btn"        id="btn-scene-2d">2D MAP</button>
+      </div>
+
+      <div class="panel-header" style="margin-top:12px">
+        <span class="panel-title">DISPLAY MODE</span>
+      </div>
+      <div class="mode-grid">
+        <button class="mode-btn active" data-mode="normal">NORMAL</button>
+        <button class="mode-btn" data-mode="nvg">NVG</button>
+        <button class="mode-btn" data-mode="flir">FLIR</button>
+        <button class="mode-btn" data-mode="crt">CRT</button>
+      </div>
+
+      <div class="panel-header" style="margin-top:12px">
+        <span class="panel-title">PRESETS</span>
+      </div>
+      <div class="preset-grid">
+        <button class="preset-btn" data-preset="globe">GLOBE</button>
+        <button class="preset-btn active" data-preset="middle-east">MID EAST</button>
+        <button class="preset-btn" data-preset="us">US / DC</button>
+        <button class="preset-btn" data-preset="europe">EUROPE</button>
+        <button class="preset-btn" data-preset="china">CHINA</button>
+        <button class="preset-btn" data-preset="russia">RUSSIA</button>
+        <button class="preset-btn" data-preset="hormuz">HORMUZ</button>
+        <button class="preset-btn" data-preset="little-st-james">J.ISLE</button>
+      </div>
+
+      <div class="panel-header" style="margin-top:12px">
+        <span class="panel-title">CITIES</span>
+      </div>
+      <div class="preset-grid cities-grid">
+        <button class="preset-btn" data-preset="new-york">NYC</button>
+        <button class="preset-btn" data-preset="washington">DC</button>
+        <button class="preset-btn" data-preset="chicago">CHICAGO</button>
+        <button class="preset-btn" data-preset="los-angeles">LA</button>
+        <button class="preset-btn" data-preset="london">LONDON</button>
+        <button class="preset-btn" data-preset="paris">PARIS</button>
+        <button class="preset-btn" data-preset="berlin">BERLIN</button>
+        <button class="preset-btn" data-preset="kyiv">KYIV</button>
+        <button class="preset-btn" data-preset="moscow">MOSCOW</button>
+        <button class="preset-btn" data-preset="istanbul">ISTANBUL</button>
+        <button class="preset-btn" data-preset="tel-aviv">TEL AVIV</button>
+        <button class="preset-btn" data-preset="tehran">TEHRAN</button>
+        <button class="preset-btn" data-preset="baghdad">BAGHDAD</button>
+        <button class="preset-btn" data-preset="riyadh">RIYADH</button>
+        <button class="preset-btn" data-preset="dubai">DUBAI</button>
+        <button class="preset-btn" data-preset="cairo">CAIRO</button>
+        <button class="preset-btn" data-preset="beijing">BEIJING</button>
+        <button class="preset-btn" data-preset="pyongyang">P.YANG</button>
+        <button class="preset-btn" data-preset="seoul">SEOUL</button>
+        <button class="preset-btn" data-preset="tokyo">TOKYO</button>
+        <button class="preset-btn" data-preset="taipei">TAIPEI</button>
+        <button class="preset-btn" data-preset="singapore">SINGAPORE</button>
+        <button class="preset-btn" data-preset="mumbai">MUMBAI</button>
+        <button class="preset-btn" data-preset="sydney">SYDNEY</button>
+      </div>
+
+      <div class="panel-header" style="margin-top:12px">
+        <span class="panel-title">INTEL FEED</span>
+      </div>
+      <div id="intel-panel">
+        <div class="intel-placeholder">
+          <span>[ SELECT OBJECT ]</span>
+          <span>Click any tracked</span>
+          <span>entity to inspect</span>
+        </div>
+      </div>
+
+    </aside>
+
+    <!-- ── BOTTOM STATUS BAR ─────────────────────────────────── -->
+    <footer id="statusbar">
+      <span class="sb-item">MODE: <span id="sb-mode" class="sb-val">NVG</span></span>
+      <span class="sb-sep">///</span>
+      <span class="sb-item">LAYERS: <span id="sb-layers" class="sb-val">0</span> ACTIVE</span>
+      <span class="sb-sep">///</span>
+      <span class="sb-item">OBJECTS: <span id="sb-objects" class="sb-val">0</span> TRACKED</span>
+      <span class="sb-sep">///</span>
+      <span class="sb-item" id="sb-status">SYSTEM READY</span>
+    </footer>
+
+  </div><!-- #app -->
+
+  <!-- Scripts — load order matters -->
+  <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
+  <!-- satellite.js v4.1.4 — v5 does not exist on npm, this is the correct latest version -->
+  <script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
+  <script src="src/config.js"></script>
+  <script src="src/ui/presets.js"></script>
+  <script src="src/ui/controls.js"></script>
+  <script src="src/layers/satellites.js"></script>
+  <script src="src/layers/flights.js"></script>
+  <script src="src/layers/military.js"></script>
+  <script src="src/layers/maritime.js"></script>
+  <script src="src/layers/jamming.js"></script>
+  <script src="src/layers/seismic.js"></script>
+  <script src="src/layers/weather.js"></script>
+  <script src="src/layers/traffic.js"></script>
+  <script src="src/layers/cctv.js"></script>
+  <script src="src/layers/sentinel.js"></script>
+  <script src="src/layers/ports.js"></script>
+  <script src="src/main.js"></script>
+
+</body>
+</html>
