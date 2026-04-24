@@ -20,7 +20,9 @@
       ],
       "min_concord_version": "0.1.0",
       "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/botc/com.concord.botc@0.1.0.zip",
-      "bundle_size_bytes": 1289
+      "bundle_size_bytes": 1289,
+      "needs_proxy": null,
+      "browser_keys": null
     },
     {
       "id": "com.concord.card-suite",
@@ -40,7 +42,9 @@
       ],
       "min_concord_version": "0.1.0",
       "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/card-suite/com.concord.card-suite@0.1.0.zip",
-      "bundle_size_bytes": 1291
+      "bundle_size_bytes": 1291,
+      "needs_proxy": null,
+      "browser_keys": null
     },
     {
       "id": "com.concord.chess-checkers",
@@ -58,7 +62,9 @@
       ],
       "min_concord_version": "0.1.0",
       "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/chess-checkers/com.concord.chess-checkers@0.1.0.zip",
-      "bundle_size_bytes": 2041
+      "bundle_size_bytes": 2041,
+      "needs_proxy": null,
+      "browser_keys": null
     },
     {
       "id": "com.concord.game-maker",
@@ -78,7 +84,9 @@
       ],
       "min_concord_version": "0.1.0",
       "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/game-maker/com.concord.game-maker@0.1.0.zip",
-      "bundle_size_bytes": 7387
+      "bundle_size_bytes": 7387,
+      "needs_proxy": null,
+      "browser_keys": null
     },
     {
       "id": "com.concord.worldview",
@@ -92,7 +100,37 @@
       ],
       "min_concord_version": "0.1.0",
       "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/worldview/com.concord.worldview@0.1.0.zip",
-      "bundle_size_bytes": 5230
+      "bundle_size_bytes": 5230,
+      "needs_proxy": null,
+      "browser_keys": null
+    },
+    {
+      "id": "com.concord.worldview-map",
+      "version": "0.1.0",
+      "name": "Worldview (OSINT Map)",
+      "description": "Cesium-based OSINT command-center: live flight tracking (OpenSky), maritime AIS (AISStream), traffic (TomTom), Sentinel imagery, weather (Windy), seismic events, and 6 more data layers \u2014 all on a 3D globe.",
+      "pricing": "free",
+      "modes": [
+        "display"
+      ],
+      "permissions": [
+        "state_events",
+        "fetch:external"
+      ],
+      "min_concord_version": "0.5.0",
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/worldview-map/com.concord.worldview-map@0.1.0.zip",
+      "bundle_size_bytes": 570934,
+      "needs_proxy": [
+        "opensky",
+        "sentinel",
+        "nycdot"
+      ],
+      "browser_keys": [
+        "CESIUM_TOKEN",
+        "AISSTREAM_KEY",
+        "TOMTOM_KEY",
+        "WINDY_KEY"
+      ]
     }
   ]
 }

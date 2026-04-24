@@ -1,0 +1,18 @@
+{
+  "id": "com.concord.worldview-map",
+  "version": "0.1.0",
+  "name": "Worldview (OSINT Map)",
+  "description": "Cesium-based OSINT command-center: live flight tracking (OpenSky), maritime AIS (AISStream), traffic (TomTom), Sentinel imagery, weather (Windy), seismic events, and 6 more data layers — all on a 3D globe.",
+  "pricing": "free",
+  "entry": "index.html",
+  "permissions": ["state_events", "fetch:external"],
+  "minConcordVersion": "0.5.0",
+  "modes": ["display"],
+  "needs_proxy": ["opensky", "sentinel", "nycdot"],
+  "browser_keys": [
+    "CESIUM_TOKEN",
+    "AISSTREAM_KEY",
+    "TOMTOM_KEY",
+    "WINDY_KEY"
+  ]
+}
