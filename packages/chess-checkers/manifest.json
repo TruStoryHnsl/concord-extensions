@@ -1,8 +1,8 @@
 {
   "id": "com.concord.chess-checkers",
-  "version": "0.1.0",
+  "version": "0.4.0",
   "name": "Chess & Checkers",
-  "description": "Chess and Checkers with shared board engine and minimax bots across four difficulty tiers.",
+  "description": "Chess and Checkers with shared board engine, AI bots across four difficulty tiers, and persistent per-game Rules panels.",
   "pricing": "free",
   "entry": "index.html",
   "modes": ["party", "display", "service"],
