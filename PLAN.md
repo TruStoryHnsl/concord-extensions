@@ -87,7 +87,7 @@ The extension SDK (`concord/client/src/extensions/sdk.ts`) stays in the main con
 | Package | ID | Pricing | Status |
 |---------|----|---------|--------|
 | `packages/worldview` | `com.concord.worldview` | free | Phase 0 |
-| `packages/card-suite` | `com.concord.card-suite` | free | Phase 6 — logic complete (v0.2.0); UI surfaces blocked on shell SDK |
+| `packages/card-suite` | `com.concord.card-suite` | free | Phase 6 — complete (v0.3.0); awaits Phase 1 install pipeline for network sync |
 
 ---
 
@@ -163,7 +163,7 @@ INS-036 already implements the session/mode mechanics. This phase documents the 
 - [ ] **INS-005: Among Us Clone — implementation** — Party, Hybrid modes.
 
 - [x] **INS-006: Card Game Suite — spec** (`docs/extensions/specs/card-game-suite.md`): shared card/deck/hand/pile engine, six games, per-game mode matrix.
-- [ ] **INS-006: Card Game Suite — implementation** — Party, Display, Service, Hybrid modes. _Logic complete: shared engine + all 6 game rule modules (Solitaire, Hold'em w/ 5-of-7 hand evaluator, Blackjack w/ H17 dealer AI, Speed w/ rank-wrap + tick conflict resolver, Kings & Peasants w/ rank carryover + card-passing, War w/ deterministic recursive war) + game-picker registry + minimal in-iframe selector on `feat/ins-006-card-suite-games-9b3c` (148 tests, bundle 34.66 kB → `com.concord.card-suite@0.2.0.zip`). Mode-specific UI surfaces still blocked on Phase 1 shell SDK in main concord repo._
+- [x] **INS-006: Card Game Suite — implementation** — Party, Display, Service, Hybrid modes. v0.3.0: shared engine + 6 game rule modules + per-mode UI renderers for every game (Solitaire fan tableau, Hold'em display+controller seats, Blackjack dealer + per-variant button row, Speed 2-pile controller + opponent count bar, Kings & Peasants combo selection, War auto-flip with pause/resume) + shell SDK bridge w/ 250ms dev-fallback + mode adapter. 202 tests; bundle 62.43 kB → `com.concord.card-suite@0.3.0.zip`. Action wiring is local-loop; real network sync hooks marked at every game's mount site, awaiting shell install/mount pipeline (Phase 1).
 
 - [x] **INS-008: JackBox Clone — spec** (`docs/extensions/specs/jackbox-clone.md`): shared round state machine, five mini-games.
 - [ ] **INS-008: JackBox Clone — implementation** — Party mode.
