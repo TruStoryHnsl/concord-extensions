@@ -93,7 +93,6 @@ function renderPicker(
   // each tile re-checks per-game compatibility below).
   const allModes: readonly UXMode[] = ['party', 'display', 'service', 'hybrid']
   const resolvedUx = mapSdkModeToUxMode(init.mode, allModes)
-  const isDev = init.sessionId === 'dev'
 
   rootStyle(root)
   replaceChildren(root)
@@ -112,13 +111,14 @@ function renderPicker(
   subtitle.style.fontSize = '13px'
   root.appendChild(subtitle)
 
-  // Dev-only override: a mode + seat picker so a developer running the
-  // bundle outside the shell can reach every game and every variant
-  // without rebuilding. Production sessions hide this — the shell's
-  // init payload is authoritative there.
-  if (isDev) {
-    root.appendChild(renderDevSessionPicker(init, () => renderPicker(root, init, bridge)))
-  }
+  // Always show the Mode + Seat picker — it's not just for dev. A host
+  // running concord by themselves still needs to choose "I'm playing
+  // this solo" vs "I'm hosting on the TV with phone controllers". The
+  // shell's init payload reflects how the session was created, but
+  // the user can override per-launch how they want to view+control
+  // the game. The session picker is the only way to reach all 6 games
+  // from a session created in `shared` mode.
+  root.appendChild(renderSessionPicker(init, () => renderPicker(root, init, bridge)))
 
   const grid = document.createElement('div')
   grid.style.display = 'grid'
@@ -317,18 +317,24 @@ function rootStyle(root: HTMLElement): void {
 }
 
 /**
- * Build the dev-only session-picker (Mode + Seat dropdowns). Mutates
- * `init` in place when the user changes a value, then calls
- * `onChange` to re-render the picker against the new init. Hidden in
- * production — when the shell's real init lands, sessionId !== 'dev'
- * and this isn't called.
+ * Build the session-view picker (Mode + Seat dropdowns). Mutates `init`
+ * in place when the user changes a value, then calls `onChange` to
+ * re-render the picker against the new init.
+ *
+ * Always rendered — even in production. The shell's init payload is the
+ * starting point, but the user owns how the game presents on THIS
+ * device: "I'm playing solo" vs "I'm hosting on the TV with phone
+ * controllers" vs "I'm a controller for someone else's display". A
+ * single-user self-hosted concord, where the host is also the only
+ * participant, hits all of those equivalently and needs to be able to
+ * choose.
  */
-function renderDevSessionPicker(
+function renderSessionPicker(
   init: ConcordInitPayload,
   onChange: () => void,
 ): HTMLElement {
   const wrap = document.createElement('div')
-  wrap.dataset.role = 'dev-session-picker'
+  wrap.dataset.role = 'session-picker'
   wrap.style.display = 'flex'
   wrap.style.gap = '12px'
   wrap.style.alignItems = 'center'
@@ -341,7 +347,7 @@ function renderDevSessionPicker(
   wrap.style.fontSize = '12px'
 
   const label = document.createElement('span')
-  label.textContent = 'Dev session:'
+  label.textContent = 'View as:'
   label.style.opacity = '0.7'
   wrap.appendChild(label)
 
@@ -353,7 +359,7 @@ function renderDevSessionPicker(
     { value: 'hybrid', label: 'hybrid → hybrid' },
   ]
   const modeSel = document.createElement('select')
-  modeSel.dataset.role = 'dev-mode'
+  modeSel.dataset.role = 'session-mode'
   styleSelect(modeSel)
   for (const opt of modeOpts) {
     const o = document.createElement('option')
@@ -375,7 +381,7 @@ function renderDevSessionPicker(
     { value: 'spectator', label: 'spectator (display)' },
   ]
   const seatSel = document.createElement('select')
-  seatSel.dataset.role = 'dev-seat'
+  seatSel.dataset.role = 'session-seat'
   styleSelect(seatSel)
   for (const opt of seatOpts) {
     const o = document.createElement('option')
