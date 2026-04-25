@@ -93,21 +93,96 @@ async function main() {
   // writes to localStorage under ``concord.ext.com.concord.worldview-map.config``.
   // The bridge reads that key, normalises the field names, and exposes
   // ``window.WV.config`` for the layer files.
+  //
+  // CRITICAL: the bridge must run BEFORE any layer file (and before
+  // src/main.js) — every layer is an IIFE that reads ``WV.config.<key>``
+  // at module load time, so if WV.config is undefined when the layer
+  // script first parses, the whole layer crashes with "WV is not
+  // defined" and never registers its draw entrypoints. The first
+  // attempt put the bridge right before main.js, AFTER the layers.
+  // Result: empty globe (Cesium token never assigned, layers all
+  // dead). Now the bridge replaces the original ``src/config.js``
+  // <script> tag in-place — same load position the legacy app used,
+  // which is before every layer file. Also fetches operator-managed
+  // browser-safe keys from the host's
+  // ``/api/extensions/<id>/public-config`` endpoint synchronously (XHR)
+  // when localStorage is empty, so users don't have to paste tokens
+  // the operator already configured.
   const indexPath = resolve(DIST, "index.html");
   let indexHtml = await readFile(indexPath, "utf-8");
-  // Drop the legacy ``<script src="src/config.js"></script>`` if present —
-  // it expects a hand-edited config.js that the new install flow doesn't
-  // ship. The bridge below replaces it.
-  indexHtml = indexHtml.replace(
-    /<script src=["']src\/config\.js["']><\/script>\s*/g,
-    "",
-  );
-  const bridge = `\n  <script>\n  // WV config bridge — populates window.WV.config from localStorage so\n  // the legacy IIFE layers see the same shape they used to read from a\n  // hand-edited src/config.js. Operators set keys via the extension's\n  // Settings overlay (or via Concord admin → Integrations → worldview-map\n  // for instance-wide defaults).\n  (function () {\n    var KEY = "concord.ext.com.concord.worldview-map.config";\n    var stored = {};\n    try { stored = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { stored = {}; }\n    window.WV = window.WV || {};\n    window.WV.config = {\n      CESIUM_TOKEN:           stored.cesium_token           || stored.CESIUM_TOKEN           || "",\n      AISSTREAM_KEY:          stored.aisstream_key          || stored.AISSTREAM_KEY          || "",\n      OPENSKY_CLIENT_ID:      stored.opensky_client_id      || stored.OPENSKY_CLIENT_ID      || "",\n      OPENSKY_CLIENT_SECRET:  stored.opensky_client_secret  || stored.OPENSKY_CLIENT_SECRET  || "",\n      SENTINEL_INSTANCE_ID:   stored.sentinel_instance_id   || stored.SENTINEL_INSTANCE_ID   || "",\n      SENTINEL_CLIENT_ID:     stored.sentinel_client_id     || stored.SENTINEL_CLIENT_ID     || "",\n      SENTINEL_CLIENT_SECRET: stored.sentinel_client_secret || stored.SENTINEL_CLIENT_SECRET || "",\n      TOMTOM_KEY:             stored.tomtom_key             || stored.TOMTOM_KEY             || "",\n      WINDY_KEY:              stored.windy_key              || stored.WINDY_KEY              || ""\n    };\n  }());\n  </script>\n`;
-  // Inject the bridge right before main.js so it executes first.
-  indexHtml = indexHtml.replace(
-    /(<script src=["']src\/main\.js["'])/,
-    `${bridge}  $1`,
-  );
+  const EXT_ID_FOR_FETCH = EXT_ID;
+  const bridge = [
+    "<script>",
+    "// WV config bridge — populates window.WV.config from localStorage,",
+    "// falling back to operator-managed browser-direct keys served by the",
+    "// host instance. Runs at the same load position the legacy app's",
+    "// src/config.js used to (BEFORE layer files), so every layer's",
+    "// IIFE that reads WV.config.* at parse time sees a populated object.",
+    "(function () {",
+    '  var KEY = "concord.ext.' + EXT_ID_FOR_FETCH + '.config";',
+    "  var stored = {};",
+    '  try { stored = JSON.parse(localStorage.getItem(KEY) || "{}"); } catch (e) { stored = {}; }',
+    "  // Synchronous XHR to /api/extensions/<id>/public-config when",
+    "  // localStorage doesn't have a token yet. Synchronous because the",
+    "  // bridge MUST finish populating window.WV.config before the next",
+    '  // <script> tag (a layer file) starts executing — async fetch would',
+    "  // mean the layers parse against an undefined WV.config. The",
+    "  // endpoint is small (a single JSON object) and only fired once on",
+    "  // first cold launch, so the brief blocking call is acceptable.",
+    "  var hasAny = stored && (stored.cesium_token || stored.CESIUM_TOKEN);",
+    "  if (!hasAny) {",
+    "    try {",
+    "      var xhr = new XMLHttpRequest();",
+    '      xhr.open("GET", "/api/extensions/' + EXT_ID_FOR_FETCH + '/public-config", false);',
+    "      xhr.send(null);",
+    "      if (xhr.status === 200) {",
+    "        var pubd = JSON.parse(xhr.responseText || \"{}\").config || {};",
+    "        // Only fill fields the user hasn't overridden locally.",
+    "        Object.keys(pubd).forEach(function (k) {",
+    "          if (!stored[k]) stored[k] = pubd[k];",
+    "        });",
+    "        // Persist so subsequent loads skip the fetch.",
+    '        try { localStorage.setItem(KEY, JSON.stringify(stored)); } catch (e) {}',
+    "      }",
+    "    } catch (e) {",
+    '      console.warn("worldview-map: public-config fetch failed", e);',
+    "    }",
+    "  }",
+    "  window.WV = window.WV || {};",
+    "  window.WV.config = {",
+    '    CESIUM_TOKEN:           stored.cesium_token           || stored.CESIUM_TOKEN           || "",',
+    '    AISSTREAM_KEY:          stored.aisstream_key          || stored.AISSTREAM_KEY          || "",',
+    '    OPENSKY_CLIENT_ID:      stored.opensky_client_id      || stored.OPENSKY_CLIENT_ID      || "",',
+    '    OPENSKY_CLIENT_SECRET:  stored.opensky_client_secret  || stored.OPENSKY_CLIENT_SECRET  || "",',
+    '    SENTINEL_INSTANCE_ID:   stored.sentinel_instance_id   || stored.SENTINEL_INSTANCE_ID   || "",',
+    '    SENTINEL_CLIENT_ID:     stored.sentinel_client_id     || stored.SENTINEL_CLIENT_ID     || "",',
+    '    SENTINEL_CLIENT_SECRET: stored.sentinel_client_secret || stored.SENTINEL_CLIENT_SECRET || "",',
+    '    TOMTOM_KEY:             stored.tomtom_key             || stored.TOMTOM_KEY             || "",',
+    '    WINDY_KEY:              stored.windy_key              || stored.WINDY_KEY              || ""',
+    "  };",
+    "}());",
+    "</script>",
+  ].join("\n");
+
+  // Replace the legacy <script src="src/config.js"></script> with the
+  // bridge AT THAT EXACT POSITION. The legacy script load order was:
+  //   Cesium → satellite → config → presets → controls → layers → main.
+  // Putting the bridge where config.js was preserves the invariant that
+  // WV.config is populated before any layer or main.js parses.
+  if (indexHtml.match(/<script src=["']src\/config\.js["']><\/script>/)) {
+    indexHtml = indexHtml.replace(
+      /<script src=["']src\/config\.js["']><\/script>/,
+      bridge,
+    );
+  } else {
+    // Fallback for builds where the line was already stripped: inject
+    // before the first non-CDN <script src="src/...">. Catches the new
+    // index.html in this repo where the line was hand-removed.
+    indexHtml = indexHtml.replace(
+      /(<script src=["']src\/(?!main\.js))/,
+      bridge + "\n  $1",
+    );
+  }
   await writeFile(indexPath, indexHtml);
 
   console.log(`built worldview-map → ${DIST}`);
