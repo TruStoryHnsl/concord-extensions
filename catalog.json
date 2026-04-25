@@ -48,9 +48,9 @@
     },
     {
       "id": "com.concord.chess-checkers",
-      "version": "0.1.0",
+      "version": "0.4.0",
       "name": "Chess & Checkers",
-      "description": "Chess and Checkers with shared board engine and minimax bots across four difficulty tiers.",
+      "description": "Chess and Checkers with shared board engine, AI bots across four difficulty tiers, and persistent per-game Rules panels.",
       "pricing": "free",
       "modes": [
         "party",
@@ -61,8 +61,8 @@
         "state_events"
       ],
       "min_concord_version": "0.1.0",
-      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/chess-checkers/com.concord.chess-checkers@0.1.0.zip",
-      "bundle_size_bytes": 2041,
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/chess-checkers/com.concord.chess-checkers@0.4.0.zip",
+      "bundle_size_bytes": 11120,
       "needs_proxy": null,
       "browser_keys": null
     },

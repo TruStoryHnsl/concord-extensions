@@ -87,7 +87,8 @@ The extension SDK (`concord/client/src/extensions/sdk.ts`) stays in the main con
 | Package | ID | Pricing | Status |
 |---------|----|---------|--------|
 | `packages/worldview` | `com.concord.worldview` | free | Phase 0 |
-| `packages/card-suite` | `com.concord.card-suite` | free | Phase 6 — complete (v0.3.0); awaits Phase 1 install pipeline for network sync |
+| `packages/card-suite` | `com.concord.card-suite` | free | Phase 6 — complete (v0.4.0); awaits Phase 1 install pipeline for network sync |
+| `packages/chess-checkers` | `com.concord.chess-checkers` | free | Phase 6 — complete (v0.4.0); awaits Phase 1 install pipeline for network sync |
 
 ---
 
@@ -154,7 +155,7 @@ INS-036 already implements the session/mode mechanics. This phase documents the 
 - [x] **INS-002: Worldview — Config Menu** — In-app config menu for API keys / service connections (`packages/worldview/src/config.ts` + UI in `src/index.ts`). 24 new tests, 51/51 pass. Supported modes: Party, Display, Service.
 
 - [x] **INS-003: Chess & Checkers — spec** (`docs/extensions/specs/chess-checkers.md`): shared board engine, minimax bot tiers.
-- [ ] **INS-003: Chess & Checkers — implementation** — Party, Display, Service modes. _Partial: engines, bots, pairing, selector, minimal board UI landed on `feat/ins-003-chess-checkers-pilot-d2c8` (34 tests, perft-3 = 8902). Mode-specific surfaces blocked on Phase 1 shell SDK in main concord repo._
+- [x] **INS-003: Chess & Checkers — implementation** — Party, Display, Service modes. v0.4.0: shipped picker UI + per-game UI surfaces + AI bot driver + persistent collapsible Rules panel for both games + inlined Concord SDK bridge (250ms dev fallback) + mode adapter. 99 tests; bundle 11.12 KB → `com.concord.chess-checkers@0.4.0.zip`. Move sync of multi-participant games is local-loop; real network sync hooks are wired but await Phase 1 shell install/mount pipeline.
 
 - [x] **INS-004: Blood on the Clocktower — spec** (`docs/extensions/specs/blood-on-the-clocktower.md`): phases, roles, bot-storyteller.
 - [ ] **INS-004: Blood on the Clocktower — implementation** — Party, Chat, Hybrid modes. _Partial: engine core (phases, votes, deaths, effects, RNG, scripts) + 5 Trouble Brewing pilot roles (Washerwoman, Librarian, Investigator, Imp, Poisoner) on `feat/ins-004-botc-core-a7e3` (51 tests). Remaining 17 Trouble Brewing roles, Sects & Violets, Bad Moon Rising, and all mode UIs pending; UIs blocked on Phase 1 shell SDK in main concord repo._
