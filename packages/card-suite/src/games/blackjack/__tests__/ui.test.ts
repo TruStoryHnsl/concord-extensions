@@ -88,7 +88,7 @@ describe('renderBlackjack', () => {
     handle.destroy()
   })
 
-  it('shared-display variant renders dealer + every player but no buttons', () => {
+  it('shared-display variant renders dealer + every player but no game-action buttons', () => {
     const root = document.createElement('div')
     const { state } = freshGame()
     const handle = renderBlackjack({
@@ -98,8 +98,10 @@ describe('renderBlackjack', () => {
       selfPlayerId: '@me:x',
       onAction: () => {},
     })
-    const buttons = root.querySelectorAll('button')
-    expect(buttons.length).toBe(0)
+    // Exclude buttons from the Rules panel — those aren't game-action buttons.
+    const allButtons = Array.from(root.querySelectorAll('button'))
+    const gameButtons = allButtons.filter((b) => !b.closest('[data-role="rules-panel"]'))
+    expect(gameButtons.length).toBe(0)
     handle.destroy()
   })
 })

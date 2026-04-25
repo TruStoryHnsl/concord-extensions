@@ -12,6 +12,7 @@
  * shell wires sync — for now any seat can advance the local copy.
  */
 
+import { mountRulesPanel } from '../ui-rules-panel'
 import {
   GameRenderHandle,
   GameRenderOpts,
@@ -24,6 +25,7 @@ import {
   replaceChildren,
 } from '../ui-common'
 import { WarAction, WarState } from './rules'
+import { RULES } from './rules-doc'
 
 export const FLIP_INTERVAL_MS = 800
 
@@ -37,11 +39,14 @@ export function renderWar(
   let timer: ReturnType<typeof setInterval> | null = null
 
   gameRootStyle(root)
+  const rulesHandle = mountRulesPanel(root, RULES, 'war')
+  const gameArea = rulesHandle.gameArea
+
   const wrapper = document.createElement('div')
   wrapper.style.maxWidth = '700px'
   wrapper.style.margin = '0 auto'
   wrapper.style.textAlign = 'center'
-  root.appendChild(wrapper)
+  gameArea.appendChild(wrapper)
 
   const status = document.createElement('div')
   status.style.fontSize = '13px'
@@ -171,6 +176,7 @@ export function renderWar(
   return {
     destroy() {
       stopTimer()
+      rulesHandle.destroy()
       replaceChildren(root)
     },
     update(next: WarState) {

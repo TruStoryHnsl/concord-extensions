@@ -11,6 +11,7 @@
  */
 
 import { Card } from '../../engine/card'
+import { mountRulesPanel } from '../ui-rules-panel'
 import {
   GameRenderHandle,
   GameRenderOpts,
@@ -22,6 +23,7 @@ import {
 } from '../ui-common'
 import { BlackjackAction, BlackjackState, legalActions } from './rules'
 import { scoreHand } from './dealer-ai'
+import { RULES } from './rules-doc'
 
 export function renderBlackjack(
   opts: GameRenderOpts<BlackjackState, BlackjackAction>,
@@ -33,10 +35,14 @@ export function renderBlackjack(
 
   gameRootStyle(root)
   if (compact) root.style.padding = '8px'
+
+  const rulesHandle = mountRulesPanel(root, RULES, 'blackjack')
+  const gameArea = rulesHandle.gameArea
+
   const wrapper = document.createElement('div')
   wrapper.style.maxWidth = '900px'
   wrapper.style.margin = '0 auto'
-  root.appendChild(wrapper)
+  gameArea.appendChild(wrapper)
 
   const dealerArea = document.createElement('div')
   panelStyle(dealerArea)
@@ -194,6 +200,7 @@ export function renderBlackjack(
 
   return {
     destroy() {
+      rulesHandle.destroy()
       replaceChildren(root)
     },
     update(next: BlackjackState) {

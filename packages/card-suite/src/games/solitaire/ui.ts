@@ -16,6 +16,7 @@
  */
 
 import { Suit } from '../../engine/card'
+import { mountRulesPanel } from '../ui-rules-panel'
 import {
   GameRenderHandle,
   GameRenderOpts,
@@ -32,6 +33,7 @@ import {
   SolitaireAction,
   SolitaireState,
 } from './rules'
+import { RULES } from './rules-doc'
 
 type Selection =
   | { kind: 'tableau'; index: number; depth: number } // depth = run length from top
@@ -46,10 +48,13 @@ export function renderSolitaire(
   let selection: Selection | null = null
 
   gameRootStyle(root)
+  const rulesHandle = mountRulesPanel(root, RULES, 'solitaire')
+  const gameArea = rulesHandle.gameArea
+
   const wrapper = document.createElement('div')
   wrapper.style.maxWidth = '900px'
   wrapper.style.margin = '0 auto'
-  root.appendChild(wrapper)
+  gameArea.appendChild(wrapper)
 
   const topRow = document.createElement('div')
   topRow.style.display = 'grid'
@@ -282,7 +287,7 @@ export function renderSolitaire(
   // Click outside any card → clear selection
   function onRootClick(e: Event): void {
     const target = e.target as HTMLElement
-    if (target === wrapper || target === root) clearSelection()
+    if (target === wrapper || target === root || target === gameArea) clearSelection()
   }
   root.addEventListener('click', onRootClick)
 
@@ -291,6 +296,7 @@ export function renderSolitaire(
   return {
     destroy() {
       root.removeEventListener('click', onRootClick)
+      rulesHandle.destroy()
       replaceChildren(root)
     },
     update(next: SolitaireState) {

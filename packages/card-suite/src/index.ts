@@ -140,12 +140,30 @@ function renderPicker(
     tile.style.cursor = compatible ? 'pointer' : 'not-allowed'
     tile.style.fontSize = '16px'
     tile.style.fontWeight = '500'
+    tile.style.display = 'flex'
+    tile.style.flexDirection = 'column'
+    tile.style.alignItems = 'flex-start'
+    tile.style.textAlign = 'left'
+    tile.style.gap = '4px'
     tile.disabled = !compatible
     tile.style.opacity = compatible ? '1' : '0.45'
+    const annotation = botAnnotationFor(game.gameId)
     tile.title = compatible
-      ? `${game.displayName} · supports: ${game.supportedModes.join(', ')}`
+      ? `${game.displayName}${annotation ? ' · ' + annotation : ''} · supports: ${game.supportedModes.join(', ')}`
       : `Unavailable in '${resolvedUx}' mode (supports: ${game.supportedModes.join(', ')})`
-    tile.textContent = game.displayName
+    const titleEl = document.createElement('div')
+    titleEl.textContent = game.displayName
+    titleEl.style.fontWeight = '600'
+    tile.appendChild(titleEl)
+    if (annotation) {
+      const sub = document.createElement('div')
+      sub.dataset.role = 'tile-subtitle'
+      sub.textContent = annotation
+      sub.style.fontSize = '12px'
+      sub.style.opacity = '0.7'
+      sub.style.fontWeight = '400'
+      tile.appendChild(sub)
+    }
     tile.addEventListener('mouseenter', () => {
       if (compatible) tile.style.background = '#3a3a3a'
     })
@@ -408,6 +426,25 @@ function styleSelect(sel: HTMLSelectElement): void {
   sel.style.fontSize = '12px'
   sel.style.fontFamily = 'inherit'
   sel.style.cursor = 'pointer'
+}
+
+/**
+ * Picker subtitle for games that get bot opponents in solo / single-user
+ * sessions. Solitaire and War don't get one (Solitaire is single-player,
+ * War has no decisions). Blackjack already has a dealer AI; the human
+ * plays the dealer's hand-against-house, so no extra bot is wired.
+ */
+function botAnnotationFor(gameId: string): string | null {
+  switch (gameId) {
+    case 'holdem':
+      return 'vs 2 bots'
+    case 'speed':
+      return 'vs 1 bot'
+    case 'kings-and-peasants':
+      return 'vs 3 bots'
+    default:
+      return null
+  }
 }
 
 function stringHash(s: string): number {
