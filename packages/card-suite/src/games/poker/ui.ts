@@ -7,10 +7,18 @@
  *   - hybrid-public / hybrid-private: same as the two above but compact.
  *   - solo: shared-controller (for single-seat dev sessions).
  *
+ * Bots: any seat whose id starts with '@bot' is driven by a tiered policy
+ * defined in `bot.ts`. After every state update we check the next-to-act
+ * seat; if it's a bot, we schedule an `onAction` after BOT_TURN_DELAY_MS
+ * so the move is visible.
+ *
  * Network sync hook: future shell wave will pipe `onAction` outbound; this
  * renderer only mutates DOM via update().
  */
 
+import { mulberry32 } from '../../engine/rng'
+import { BOT_TURN_DELAY_MS, isBotId, PendingTimers } from '../bot-driver'
+import { mountRulesPanel } from '../ui-rules-panel'
 import {
   GameRenderHandle,
   GameRenderOpts,
@@ -22,7 +30,9 @@ import {
   panelStyle,
   replaceChildren,
 } from '../ui-common'
+import { pickAction as botPickAction } from './bot'
 import { HoldemAction, HoldemState, legalActions } from './holdem'
+import { RULES } from './rules-doc'
 
 export function renderHoldem(
   opts: GameRenderOpts<HoldemState, HoldemAction>,
@@ -34,10 +44,14 @@ export function renderHoldem(
 
   gameRootStyle(root)
   if (compact) root.style.padding = '8px'
+
+  const rulesHandle = mountRulesPanel(root, RULES, 'holdem')
+  const gameArea = rulesHandle.gameArea
+
   const wrapper = document.createElement('div')
   wrapper.style.maxWidth = '900px'
   wrapper.style.margin = '0 auto'
-  root.appendChild(wrapper)
+  gameArea.appendChild(wrapper)
 
   // Top: pot + phase
   const header = document.createElement('div')
@@ -73,6 +87,12 @@ export function renderHoldem(
   if (isPublic) localArea.style.display = 'none'
   wrapper.appendChild(localArea)
 
+  const timers = new PendingTimers()
+  // Per-renderer rng for bot decisions. Seeded from a fixed constant so
+  // tests can rely on deterministic output without coupling to the game's
+  // own rng.
+  const botRng = mulberry32(0x1357)
+
   function safeOnAction(a: HoldemAction): void {
     try {
       onAction(a)
@@ -80,6 +100,17 @@ export function renderHoldem(
       // Surface in header — best-effort feedback.
       header.title = (e as Error).message
     }
+  }
+
+  /** Schedule a bot move if the next-to-act seat is a bot. */
+  function maybeScheduleBotTurn(): void {
+    if (state.toAct < 0) return
+    const acting = state.seats[state.toAct]
+    if (!acting) return
+    if (acting.id === selfPlayerId) return
+    if (!isBotId(acting.id)) return
+    const action = botPickAction(state, acting.id, botRng)
+    timers.schedule(() => safeOnAction(action), BOT_TURN_DELAY_MS)
   }
 
   function redraw(): void {
@@ -116,7 +147,8 @@ export function renderHoldem(
       const name = document.createElement('div')
       name.style.fontWeight = '600'
       name.style.fontSize = '12px'
-      name.textContent = seat.id + (seat.id === selfPlayerId ? ' (you)' : '')
+      const botBadge = isBotId(seat.id) ? ' [bot]' : ''
+      name.textContent = seat.id + botBadge + (seat.id === selfPlayerId ? ' (you)' : '')
       tile.appendChild(name)
       const stats = document.createElement('div')
       stats.style.fontSize = '11px'
@@ -179,15 +211,21 @@ export function renderHoldem(
   }
 
   redraw()
+  // Kick off the first bot turn if applicable (e.g. seat 1 is a bot pre-flop
+  // in the default 3-seat layout).
+  maybeScheduleBotTurn()
 
   return {
     destroy() {
+      timers.cancelAll()
+      rulesHandle.destroy()
       replaceChildren(root)
     },
     update(next: HoldemState) {
       if (next === state) return
       state = next
       redraw()
+      maybeScheduleBotTurn()
     },
   }
 }

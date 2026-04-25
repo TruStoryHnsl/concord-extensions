@@ -4,10 +4,18 @@
  * Variant: shared-controller only (each player needs their own private hand).
  * Other variants fall back to the same layout with a "spectator" badge.
  *
+ * Bots: any opponent whose id starts with '@bot' is driven by a hand-scan
+ * picker in `bot.ts`. The bot is run on a periodic tick (every
+ * BOT_TURN_DELAY_MS) so it competes with the human in real-time. After a
+ * play (by either side), the next tick is scheduled.
+ *
  * Network sync hook: `onAction` fires with `play` actions; future shell wave
  * will broadcast and reconcile real-time conflicts via resolveTick().
  */
 
+import { mulberry32 } from '../../engine/rng'
+import { BOT_TURN_DELAY_MS, isBotId, PendingTimers } from '../bot-driver'
+import { mountRulesPanel } from '../ui-rules-panel'
 import {
   GameRenderHandle,
   GameRenderOpts,
@@ -18,7 +26,9 @@ import {
   panelStyle,
   replaceChildren,
 } from '../ui-common'
+import { pickAction as botPickAction } from './bot'
 import { legalActions, SpeedAction, SpeedState } from './rules'
+import { RULES } from './rules-doc'
 
 export function renderSpeed(
   opts: GameRenderOpts<SpeedState, SpeedAction>,
@@ -27,10 +37,14 @@ export function renderSpeed(
   let state = initialState
 
   gameRootStyle(root)
+
+  const rulesHandle = mountRulesPanel(root, RULES, 'speed')
+  const gameArea = rulesHandle.gameArea
+
   const wrapper = document.createElement('div')
   wrapper.style.maxWidth = '700px'
   wrapper.style.margin = '0 auto'
-  root.appendChild(wrapper)
+  gameArea.appendChild(wrapper)
 
   const status = document.createElement('div')
   status.style.fontSize = '13px'
@@ -60,6 +74,9 @@ export function renderSpeed(
   stuckBtnWrap.style.marginTop = '8px'
   wrapper.appendChild(stuckBtnWrap)
 
+  const timers = new PendingTimers()
+  const botRng = mulberry32(0x2468)
+
   function safeOnAction(a: SpeedAction): void {
     try {
       onAction(a)
@@ -70,6 +87,37 @@ export function renderSpeed(
 
   function meIdx(): number {
     return state.players.findIndex((p) => p.id === selfPlayerId)
+  }
+
+  /**
+   * Schedule a bot tick if there's a bot opponent. Speed has no turn
+   * concept — the bot just needs to fire a legal play whenever it has one.
+   */
+  function maybeScheduleBotTurn(): void {
+    if (state.winner) return
+    const me = meIdx()
+    const oppIdx = me === 0 ? 1 : 0
+    const opp = state.players[oppIdx]
+    if (!opp) return
+    if (!isBotId(opp.id)) return
+    // Only schedule if the bot has a legal action right now.
+    const acts = legalActions(state, opp.id)
+    if (acts.length === 0) return
+    timers.schedule(() => {
+      // State may have advanced — re-derive in case the bot's intended action
+      // is no longer legal. Use legalActions over botPickAction for safety.
+      const fresh = legalActions(state, opp.id)
+      if (fresh.length === 0) return
+      const action = botPickAction(state, opp.id, botRng)
+      // Only fire actions the rules layer will accept (defensive).
+      if (
+        action.kind === 'reveal-stuck' &&
+        !fresh.some((a) => a.kind === 'reveal-stuck')
+      ) {
+        return
+      }
+      safeOnAction(action)
+    }, BOT_TURN_DELAY_MS)
   }
 
   function redraw(): void {
@@ -85,7 +133,8 @@ export function renderSpeed(
       const lbl = document.createElement('div')
       lbl.style.fontSize = '12px'
       lbl.style.marginBottom = '6px'
-      lbl.textContent = `${opp.id}  ·  hand ${opp.hand.length}  ·  draw ${opp.draw.length}  ·  side ${opp.sideStack.length}`
+      const botBadge = isBotId(opp.id) ? ' [bot]' : ''
+      lbl.textContent = `${opp.id}${botBadge}  ·  hand ${opp.hand.length}  ·  draw ${opp.draw.length}  ·  side ${opp.sideStack.length}`
       opponentRow.appendChild(lbl)
       const bar = document.createElement('div')
       bar.style.display = 'flex'
@@ -165,14 +214,18 @@ export function renderSpeed(
   }
 
   redraw()
+  maybeScheduleBotTurn()
   return {
     destroy() {
+      timers.cancelAll()
+      rulesHandle.destroy()
       replaceChildren(root)
     },
     update(next: SpeedState) {
       if (next === state) return
       state = next
       redraw()
+      maybeScheduleBotTurn()
     },
   }
 }

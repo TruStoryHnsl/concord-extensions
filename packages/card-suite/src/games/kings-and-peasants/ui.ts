@@ -10,9 +10,17 @@
  *   - "Pass" button when a top combo exists.
  *   - "Start next round" shown when the round is settled.
  *
+ * Bots: any seat whose id starts with '@bot' is driven by a "lowest legal
+ * combo or pass" policy in `bot.ts`. After every state update we check the
+ * next-to-act seat; if it's a bot, we schedule a delayed `onAction` so the
+ * move is visible.
+ *
  * Network sync hook: `onAction` fires with `play` / `pass` / `start-round`.
  */
 
+import { mulberry32 } from '../../engine/rng'
+import { BOT_TURN_DELAY_MS, isBotId, PendingTimers } from '../bot-driver'
+import { mountRulesPanel } from '../ui-rules-panel'
 import {
   GameRenderHandle,
   GameRenderOpts,
@@ -22,7 +30,9 @@ import {
   panelStyle,
   replaceChildren,
 } from '../ui-common'
+import { pickAction as botPickAction } from './bot'
 import { KPAction, KPState, legalActions } from './rules'
+import { RULES } from './rules-doc'
 
 export function renderKingsAndPeasants(
   opts: GameRenderOpts<KPState, KPAction>,
@@ -32,10 +42,14 @@ export function renderKingsAndPeasants(
   let selected: Set<string> = new Set()
 
   gameRootStyle(root)
+
+  const rulesHandle = mountRulesPanel(root, RULES, 'kings-and-peasants')
+  const gameArea = rulesHandle.gameArea
+
   const wrapper = document.createElement('div')
   wrapper.style.maxWidth = '900px'
   wrapper.style.margin = '0 auto'
-  root.appendChild(wrapper)
+  gameArea.appendChild(wrapper)
 
   const status = document.createElement('div')
   status.style.fontSize = '13px'
@@ -68,6 +82,9 @@ export function renderKingsAndPeasants(
   buttons.style.gap = '8px'
   wrapper.appendChild(buttons)
 
+  const timers = new PendingTimers()
+  const botRng = mulberry32(0x3691)
+
   function safeOnAction(a: KPAction): void {
     try {
       onAction(a)
@@ -78,6 +95,19 @@ export function renderKingsAndPeasants(
 
   function meIdx(): number {
     return state.players.findIndex((p) => p.id === selfPlayerId)
+  }
+
+  function maybeScheduleBotTurn(): void {
+    if (state.toAct < 0) return
+    const livingCount = state.players.filter((p) => p.finishOrder === null).length
+    if (livingCount <= 1) return // round over
+    const acting = state.players[state.toAct]
+    if (!acting) return
+    if (acting.id === selfPlayerId) return
+    if (!isBotId(acting.id)) return
+    if (acting.finishOrder !== null) return
+    const action = botPickAction(state, acting.id, botRng)
+    timers.schedule(() => safeOnAction(action), BOT_TURN_DELAY_MS)
   }
 
   function redraw(): void {
@@ -110,7 +140,8 @@ export function renderKingsAndPeasants(
       const name = document.createElement('div')
       name.style.fontSize = '12px'
       name.style.fontWeight = '600'
-      name.textContent = `${p.id}${p.finishOrder !== null ? ' · done' : ''}`
+      const botBadge = isBotId(p.id) ? ' [bot]' : ''
+      name.textContent = `${p.id}${botBadge}${p.finishOrder !== null ? ' · done' : ''}`
       tile.appendChild(name)
       const bar = document.createElement('div')
       bar.style.display = 'flex'
@@ -215,8 +246,11 @@ export function renderKingsAndPeasants(
   }
 
   redraw()
+  maybeScheduleBotTurn()
   return {
     destroy() {
+      timers.cancelAll()
+      rulesHandle.destroy()
       replaceChildren(root)
     },
     update(next: KPState) {
@@ -224,6 +258,7 @@ export function renderKingsAndPeasants(
       state = next
       selected.clear()
       redraw()
+      maybeScheduleBotTurn()
     },
   }
 }

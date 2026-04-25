@@ -26,9 +26,9 @@
     },
     {
       "id": "com.concord.card-suite",
-      "version": "0.3.2",
+      "version": "0.4.0",
       "name": "Card Game Suite",
-      "description": "Six card games (Solitaire, Hold'em, Blackjack, Speed, Kings & Peasants, War) under one shared engine.",
+      "description": "Six card games (Solitaire, Hold'em, Blackjack, Speed, Kings & Peasants, War) with AI bots and per-game Rules panels.",
       "pricing": "one_time",
       "modes": [
         "party",
@@ -41,8 +41,8 @@
         "send_to_device"
       ],
       "min_concord_version": "0.1.0",
-      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/card-suite/com.concord.card-suite@0.3.2.zip",
-      "bundle_size_bytes": 19314,
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/card-suite/com.concord.card-suite@0.4.0.zip",
+      "bundle_size_bytes": 25164,
       "needs_proxy": null,
       "browser_keys": null
     },
