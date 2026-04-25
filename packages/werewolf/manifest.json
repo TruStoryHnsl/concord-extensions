@@ -1,0 +1,11 @@
+{
+  "id": "com.concord.werewolf",
+  "version": "0.4.0",
+  "name": "Werewolf",
+  "description": "A public-domain social-deduction game. Villagers vs. Werewolves — survive the night, lynch the wolves by day.",
+  "modes": ["party", "chat", "hybrid"],
+  "pricing": "free",
+  "entry": "index.html",
+  "permissions": ["state_events", "send_to_device", "matrix.read", "matrix.send"],
+  "minConcordVersion": "0.1.0"
+}
