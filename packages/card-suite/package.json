@@ -1,6 +1,6 @@
 {
   "name": "concord-ext-card-suite",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Card Game Suite (INS-006) — shared card/deck/hand/pile engine + six games under one extension",
   "private": true,
   "type": "module",
