@@ -93,6 +93,7 @@ function renderPicker(
   // each tile re-checks per-game compatibility below).
   const allModes: readonly UXMode[] = ['party', 'display', 'service', 'hybrid']
   const resolvedUx = mapSdkModeToUxMode(init.mode, allModes)
+  const isDev = init.sessionId === 'dev'
 
   rootStyle(root)
   replaceChildren(root)
@@ -110,6 +111,14 @@ function renderPicker(
   subtitle.style.opacity = '0.7'
   subtitle.style.fontSize = '13px'
   root.appendChild(subtitle)
+
+  // Dev-only override: a mode + seat picker so a developer running the
+  // bundle outside the shell can reach every game and every variant
+  // without rebuilding. Production sessions hide this — the shell's
+  // init payload is authoritative there.
+  if (isDev) {
+    root.appendChild(renderDevSessionPicker(init, () => renderPicker(root, init, bridge)))
+  }
 
   const grid = document.createElement('div')
   grid.style.display = 'grid'
@@ -248,7 +257,10 @@ function launchRenderer(
     case 'kings-and-peasants':
       return renderKingsAndPeasants(opts) as unknown as GameRenderHandle<unknown>
     case 'war':
-      return renderWar({ ...opts, autoplay: false }) as unknown as GameRenderHandle<unknown>
+      // Autoplay on by default so the renderer actually does something
+      // when launched. The pause/resume button in the war UI lets the
+      // user halt it for inspection.
+      return renderWar({ ...opts, autoplay: true }) as unknown as GameRenderHandle<unknown>
     default:
       throw new Error(`unknown gameId: ${rules.gameId}`)
   }
@@ -302,6 +314,94 @@ function rootStyle(root: HTMLElement): void {
   root.style.minHeight = '100vh'
   root.style.padding = '24px'
   root.style.boxSizing = 'border-box'
+}
+
+/**
+ * Build the dev-only session-picker (Mode + Seat dropdowns). Mutates
+ * `init` in place when the user changes a value, then calls
+ * `onChange` to re-render the picker against the new init. Hidden in
+ * production — when the shell's real init lands, sessionId !== 'dev'
+ * and this isn't called.
+ */
+function renderDevSessionPicker(
+  init: ConcordInitPayload,
+  onChange: () => void,
+): HTMLElement {
+  const wrap = document.createElement('div')
+  wrap.dataset.role = 'dev-session-picker'
+  wrap.style.display = 'flex'
+  wrap.style.gap = '12px'
+  wrap.style.alignItems = 'center'
+  wrap.style.flexWrap = 'wrap'
+  wrap.style.padding = '10px 12px'
+  wrap.style.background = '#212121'
+  wrap.style.border = '1px solid #333'
+  wrap.style.borderRadius = '6px'
+  wrap.style.marginBottom = '20px'
+  wrap.style.fontSize = '12px'
+
+  const label = document.createElement('span')
+  label.textContent = 'Dev session:'
+  label.style.opacity = '0.7'
+  wrap.appendChild(label)
+
+  const modeOpts: { value: ConcordInitPayload['mode']; label: string }[] = [
+    { value: 'shared_admin_input', label: 'shared_admin_input → party' },
+    { value: 'shared', label: 'shared → display' },
+    { value: 'shared_readonly', label: 'shared_readonly → display' },
+    { value: 'per_user', label: 'per_user → service' },
+    { value: 'hybrid', label: 'hybrid → hybrid' },
+  ]
+  const modeSel = document.createElement('select')
+  modeSel.dataset.role = 'dev-mode'
+  styleSelect(modeSel)
+  for (const opt of modeOpts) {
+    const o = document.createElement('option')
+    o.value = opt.value
+    o.textContent = opt.label
+    if (opt.value === init.mode) o.selected = true
+    modeSel.appendChild(o)
+  }
+  modeSel.addEventListener('change', () => {
+    init.mode = modeSel.value as ConcordInitPayload['mode']
+    onChange()
+  })
+  wrap.appendChild(modeSel)
+
+  const seatOpts: { value: ConcordInitPayload['seat']; label: string }[] = [
+    { value: 'participant', label: 'participant (controller)' },
+    { value: 'host', label: 'host (display)' },
+    { value: 'observer', label: 'observer (display)' },
+    { value: 'spectator', label: 'spectator (display)' },
+  ]
+  const seatSel = document.createElement('select')
+  seatSel.dataset.role = 'dev-seat'
+  styleSelect(seatSel)
+  for (const opt of seatOpts) {
+    const o = document.createElement('option')
+    o.value = opt.value
+    o.textContent = opt.label
+    if (opt.value === init.seat) o.selected = true
+    seatSel.appendChild(o)
+  }
+  seatSel.addEventListener('change', () => {
+    init.seat = seatSel.value as ConcordInitPayload['seat']
+    onChange()
+  })
+  wrap.appendChild(seatSel)
+
+  return wrap
+}
+
+function styleSelect(sel: HTMLSelectElement): void {
+  sel.style.background = '#1a1a1a'
+  sel.style.color = '#e8e8e8'
+  sel.style.border = '1px solid #3a3a3a'
+  sel.style.borderRadius = '4px'
+  sel.style.padding = '4px 8px'
+  sel.style.fontSize = '12px'
+  sel.style.fontFamily = 'inherit'
+  sel.style.cursor = 'pointer'
 }
 
 function stringHash(s: string): number {
