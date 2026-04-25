@@ -20,12 +20,30 @@ import {
 
 export const INIT_FALLBACK_MS = 250
 
+/**
+ * Dev fallback default. Two important choices:
+ *
+ *   - `mode: "shared_admin_input"` maps to UX "party" — the one mode that
+ *     EVERY card-suite game supports. With "shared" → "display" the
+ *     picker filtered out Hold'em / Speed / Kings & Peasants entirely
+ *     because they don't support display mode, so only half the suite
+ *     was reachable in dev.
+ *   - `seat: "participant"` so the chosen variant gets the controller
+ *     surface (with action buttons) instead of the read-only display
+ *     variant. The dev/solo user is BOTH the host (audience) AND the
+ *     actor; in production those are different devices, but in dev we
+ *     want the device that's open to actually be playable.
+ *
+ * In production the shell sends a real concord:init payload before the
+ * 250ms fallback fires, so this default is dev-only and never racing
+ * shell-driven sessions.
+ */
 const DEV_INIT: ConcordInitPayload = {
   sessionId: 'dev',
   extensionId: 'com.concord.card-suite',
-  mode: 'shared',
+  mode: 'shared_admin_input',
   participantId: '@dev:local',
-  seat: 'host',
+  seat: 'participant',
   surfaces: [{ surface_id: 'main', type: 'panel', anchor: 'center' }],
 }
 

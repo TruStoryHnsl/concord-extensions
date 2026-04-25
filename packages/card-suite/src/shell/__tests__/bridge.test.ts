@@ -46,8 +46,11 @@ describe('ShellBridge', () => {
     const init = await initPromise
     expect(init.sessionId).toBe('dev')
     expect(init.extensionId).toBe('com.concord.card-suite')
-    expect(init.seat).toBe('host')
-    expect(init.mode).toBe('shared')
+    // Dev fallback uses participant seat + shared_admin_input mode so the
+    // controller variant with action buttons is the default — the dev/solo
+    // user is both audience and actor and needs the playable surface.
+    expect(init.seat).toBe('participant')
+    expect(init.mode).toBe('shared_admin_input')
     expect(init.surfaces[0].surface_id).toBe('main')
     b.destroy()
   })
