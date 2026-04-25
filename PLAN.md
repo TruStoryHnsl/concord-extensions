@@ -49,7 +49,7 @@ The INS-036 session model is **already implemented** in the main concord repo (W
 |-----------|:-----:|:-------:|:-------:|:----:|:------:|
 | Worldview | ✓ | ✓ | ✓ | | |
 | Chess & Checkers | ✓ | ✓ | ✓ | | |
-| Blood on the Clocktower | ✓ | | | ✓ | ✓ |
+| Werewolf | ✓ | | | ✓ | ✓ |
 | Among Us Clone | ✓ | | | | ✓ |
 | Card Game Suite | ✓ | ✓ | ✓ | | ✓ |
 | JackBox Clone | ✓ | | | | |
@@ -157,8 +157,7 @@ INS-036 already implements the session/mode mechanics. This phase documents the 
 - [x] **INS-003: Chess & Checkers — spec** (`docs/extensions/specs/chess-checkers.md`): shared board engine, minimax bot tiers.
 - [x] **INS-003: Chess & Checkers — implementation** — Party, Display, Service modes. v0.4.0: shipped picker UI + per-game UI surfaces + AI bot driver + persistent collapsible Rules panel for both games + inlined Concord SDK bridge (250ms dev fallback) + mode adapter. 99 tests; bundle 11.12 KB → `com.concord.chess-checkers@0.4.0.zip`. Move sync of multi-participant games is local-loop; real network sync hooks are wired but await Phase 1 shell install/mount pipeline.
 
-- [x] **INS-004: Blood on the Clocktower — spec** (`docs/extensions/specs/blood-on-the-clocktower.md`): phases, roles, bot-storyteller.
-- [ ] **INS-004: Blood on the Clocktower — implementation** — Party, Chat, Hybrid modes. _Partial: engine core (phases, votes, deaths, effects, RNG, scripts) + 5 Trouble Brewing pilot roles (Washerwoman, Librarian, Investigator, Imp, Poisoner) on `feat/ins-004-botc-core-a7e3` (51 tests). Remaining 17 Trouble Brewing roles, Sects & Violets, Bad Moon Rising, and all mode UIs pending; UIs blocked on Phase 1 shell SDK in main concord repo._
+- [x] **INS-004: Werewolf — implementation** (was Blood on the Clocktower; pivoted to public-domain Werewolf to avoid IP risk on Pandemonium Institute / Steven Medway's BotC). v0.4.0: shipped 5 public-domain roles (Villager, Werewolf, Seer, Doctor, Witch) + 3 rolesets (5/6/7 player) + AI bots (deterministic werewolf vote convergence + per-role policies) + persistent Rules panel + inlined SDK bridge + mode adapter. 140 tests; bundle 7.58 KB → `com.concord.werewolf@0.4.0.zip`. The legacy `packages/botc/` package + BotC-specific role tests were deleted with the pivot. Real network sync of role actions awaits Phase 1 shell pipeline.
 
 - [x] **INS-005: Among Us Clone — spec** (`docs/extensions/specs/among-us-clone.md`): room-graph movement, tasks, imposters, meetings.
 - [ ] **INS-005: Among Us Clone — implementation** — Party, Hybrid modes.

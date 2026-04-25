@@ -2,11 +2,11 @@
   "catalog_version": 1,
   "extensions": [
     {
-      "id": "com.concord.botc",
-      "version": "0.1.0",
-      "name": "Blood on the Clocktower",
-      "description": "Social-deduction engine with Party/Chat/Hybrid support. Ships Trouble Brewing pilot roles.",
-      "pricing": "one_time",
+      "id": "com.concord.werewolf",
+      "version": "0.4.0",
+      "name": "Werewolf",
+      "description": "A public-domain social-deduction game. Villagers vs. Werewolves — survive the night, lynch the wolves by day.",
+      "pricing": "free",
       "modes": [
         "party",
         "chat",
@@ -19,8 +19,8 @@
         "matrix.send"
       ],
       "min_concord_version": "0.1.0",
-      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/botc/com.concord.botc@0.1.0.zip",
-      "bundle_size_bytes": 1289,
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/werewolf/com.concord.werewolf@0.4.0.zip",
+      "bundle_size_bytes": 7585,
       "needs_proxy": null,
       "browser_keys": null
     },
