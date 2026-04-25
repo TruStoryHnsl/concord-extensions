@@ -87,6 +87,7 @@ The extension SDK (`concord/client/src/extensions/sdk.ts`) stays in the main con
 | Package | ID | Pricing | Status |
 |---------|----|---------|--------|
 | `packages/worldview` | `com.concord.worldview` | free | Phase 0 |
+| `packages/card-suite` | `com.concord.card-suite` | free | Phase 6 — logic complete (v0.2.0); UI surfaces blocked on shell SDK |
 
 ---
 
@@ -162,7 +163,7 @@ INS-036 already implements the session/mode mechanics. This phase documents the 
 - [ ] **INS-005: Among Us Clone — implementation** — Party, Hybrid modes.
 
 - [x] **INS-006: Card Game Suite — spec** (`docs/extensions/specs/card-game-suite.md`): shared card/deck/hand/pile engine, six games, per-game mode matrix.
-- [ ] **INS-006: Card Game Suite — implementation** — Party, Display, Service, Hybrid modes. _Partial: shared engine (card/deck/hand/pile/rng/types) + Solitaire pilot rules on `feat/ins-006-card-suite-engine-f9d2` (49 tests, deterministic seeded shuffle). Remaining 5 games (Hold'em, Blackjack, Speed, Kings & Peasants, War) and all mode UIs pending; UIs blocked on Phase 1 shell SDK in main concord repo._
+- [ ] **INS-006: Card Game Suite — implementation** — Party, Display, Service, Hybrid modes. _Logic complete: shared engine + all 6 game rule modules (Solitaire, Hold'em w/ 5-of-7 hand evaluator, Blackjack w/ H17 dealer AI, Speed w/ rank-wrap + tick conflict resolver, Kings & Peasants w/ rank carryover + card-passing, War w/ deterministic recursive war) + game-picker registry + minimal in-iframe selector on `feat/ins-006-card-suite-games-9b3c` (148 tests, bundle 34.66 kB → `com.concord.card-suite@0.2.0.zip`). Mode-specific UI surfaces still blocked on Phase 1 shell SDK in main concord repo._
 
 - [x] **INS-008: JackBox Clone — spec** (`docs/extensions/specs/jackbox-clone.md`): shared round state machine, five mini-games.
 - [ ] **INS-008: JackBox Clone — implementation** — Party mode.
