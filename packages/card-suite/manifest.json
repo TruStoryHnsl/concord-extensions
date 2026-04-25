@@ -1,6 +1,6 @@
 {
   "id": "com.concord.card-suite",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "name": "Card Game Suite",
   "description": "Six card games (Solitaire, Hold'em, Blackjack, Speed, Kings & Peasants, War) under one shared engine.",
   "modes": ["party", "display", "service", "hybrid"],
