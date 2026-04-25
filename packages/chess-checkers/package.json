@@ -1,7 +1,7 @@
 {
   "name": "concord-ext-chess-checkers",
-  "version": "0.1.0",
-  "description": "Chess & Checkers extension for Concord (INS-003) — shared board engine + minimax bots",
+  "version": "0.4.0",
+  "description": "Chess & Checkers extension for Concord (INS-003) — shared board engine + minimax bots + per-game rules panels + AI bot opponent",
   "private": true,
   "type": "module",
   "scripts": {
