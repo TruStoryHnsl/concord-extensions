@@ -1,0 +1,99 @@
+name: Bug report
+description: Something broken in an extension, the SDK, or the build pipeline.
+labels: ["bug"]
+body:
+  - type: input
+    id: package
+    attributes:
+      label: Affected package
+      description: Which extension or component? e.g. `card-suite`, `worldview-map`, `chess-checkers`, `werewolf`, `game-maker`, build pipeline, root tooling.
+      placeholder: card-suite
+    validations:
+      required: true
+
+  - type: input
+    id: version
+    attributes:
+      label: Extension version
+      description: From the package's `manifest.json` or release tag.
+      placeholder: 0.4.0
+    validations:
+      required: true
+
+  - type: input
+    id: concord_version
+    attributes:
+      label: Concord server version
+      description: From `concord --version` or the server's `/api/version` endpoint.
+      placeholder: 0.1.0
+    validations:
+      required: false
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Summary
+      description: One sentence. What's broken?
+      placeholder: Card suite Hold'em pot resets to 0 after the river.
+    validations:
+      required: true
+
+  - type: textarea
+    id: expected
+    attributes:
+      label: Expected behavior
+      description: What should happen?
+    validations:
+      required: true
+
+  - type: textarea
+    id: actual
+    attributes:
+      label: Actual behavior
+      description: What actually happens? Include screenshots or video if the issue is visual.
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Reproduction steps
+      description: Numbered, minimal, deterministic.
+      placeholder: |
+        1. Install card-suite 0.4.0.
+        2. Start a Hold'em session in Party mode with 3 bots.
+        3. Play to the river.
+        4. Pot value drops to 0 instead of being awarded.
+    validations:
+      required: true
+
+  - type: textarea
+    id: environment
+    attributes:
+      label: Environment
+      description: OS, browser (for client-side issues), Concord deployment type (Docker / native / web), Node + pnpm versions if building locally.
+      placeholder: |
+        OS: CachyOS Linux
+        Browser: Firefox 128 (native client embedded webview)
+        Concord: Docker, tag 0.1.0
+        Node: 20.11.0
+        pnpm: 9.15.0
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / console output
+      description: Server logs, browser console, postMessage SDK errors. Wrap in code fences.
+      render: shell
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Workarounds tried, suspected cause, related issues.
+    validations:
+      required: false
