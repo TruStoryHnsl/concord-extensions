@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: Concord platform issues
+    url: https://github.com/TruStoryHnsl/concord/issues
+    about: Bugs in the Concord client, server, or SDK runtime — not in an extension itself.
+  - name: GitHub Discussions
+    url: https://github.com/TruStoryHnsl/concord-extensions/discussions
+    about: Questions, ideas, and design conversations that aren't yet bug reports or feature requests.

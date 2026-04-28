@@ -1,0 +1,56 @@
+name: Feature request
+description: New capability, new extension idea, or SDK addition.
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: Problem
+      description: What can't you do today? Be concrete. "I want X" is fine; "it would be nice if" is not.
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposal
+    attributes:
+      label: Proposed solution
+      description: How would you fix it? Sketch the manifest fields, SDK surface, or extension pack you have in mind.
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives considered
+      description: Other approaches you thought about and why you discarded them.
+    validations:
+      required: false
+
+  - type: dropdown
+    id: scope
+    attributes:
+      label: Scope
+      description: How broadly does this apply?
+      options:
+        - just-me — one-off for my deployment
+        - would-like-to-share — useful to others, willing to upstream
+        - commercial-fit — relevant to paid Concord deployments
+    validations:
+      required: true
+
+  - type: input
+    id: package
+    attributes:
+      label: Affected package(s)
+      description: Existing extension to extend, or "new extension" / "SDK" / "build tooling".
+      placeholder: card-suite
+    validations:
+      required: false
+
+  - type: textarea
+    id: extra
+    attributes:
+      label: Anything else
+      description: Mockups, links, prior art.
+    validations:
+      required: false
