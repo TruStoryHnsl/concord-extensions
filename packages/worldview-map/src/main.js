@@ -110,6 +110,7 @@
   WV.Controls.init();
   WV.Presets.init(viewer);
   WV.HealthPanel.init();
+  WV.BudgetGuard.init();
 
   // ── 2D / 3D SCENE TOGGLE ─────────────────────────────────
   var starCanvas = document.querySelector('#cesiumContainer canvas[style*="z-index:0"]');
