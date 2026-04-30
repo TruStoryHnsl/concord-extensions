@@ -76,13 +76,15 @@ WV.layers.ports = (function () {
 
   var _anchorImg = _makeAnchor(20);
 
-  function fetchText(url, opts) {
-    return fetch(url, opts || {}).then(function (r) {
-      if (!r.ok) throw new Error('HTTP ' + r.status);
-      return r.text();
-    });
+  function fetchText(url) {
+    return WV.fetch('ports', url, { as: 'text' });
   }
-  function fetchJson(url, opts) {
+  function fetchJson(url) {
+    return WV.fetch('ports', url);
+  }
+  // POST requests cannot go through WV.fetch (no method/body opts support).
+  // Overpass uses HTTP POST — kept as raw fetch intentionally.
+  function fetchJsonPost(url, opts) {
     return fetch(url, opts || {}).then(function (r) {
       if (!r.ok) throw new Error('HTTP ' + r.status);
       return r.json();
@@ -204,7 +206,7 @@ WV.layers.ports = (function () {
       // 3. OSM Overpass — harbour=yes (broad tag, good global coverage)
       .catch(function () {
         WV.Controls.setStatus('PORTS: Fetching from OpenStreetMap...');
-        return fetchJson(OVERPASS_URL, {
+        return fetchJsonPost(OVERPASS_URL, {
           method:  'POST',
           body:    'data=' + encodeURIComponent(OVERPASS_QUERY),
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
