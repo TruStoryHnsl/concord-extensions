@@ -34,12 +34,12 @@ WV.layers.satellites = (function () {
       isJson: false, parser: 'tle' },
   ];
 
-  function fetchWithTimeout(url, ms) {
+  function fetchWithTimeout(url, ms, asText) {
     var ctrl = new AbortController();
     var tid  = setTimeout(function () { ctrl.abort(); }, ms);
-    return fetch(url, { signal: ctrl.signal })
-      .then(function (r) { clearTimeout(tid); return r; })
-      .catch(function (e) { clearTimeout(tid); throw e; });
+    return WV.fetch('satellites', url, { signal: ctrl.signal, as: asText ? 'text' : undefined })
+      .then(function (data) { clearTimeout(tid); return data; })
+      .catch(function (e)   { clearTimeout(tid); throw e; });
   }
 
   // ── PARSERS ────────────────────────────────────────────────
@@ -90,11 +90,7 @@ WV.layers.satellites = (function () {
     if (idx >= sources.length) return Promise.reject(new Error('all TLE sources failed'));
     var src = sources[idx];
     console.log('SAT: trying', src.url.substring(0, 70));
-    return fetchWithTimeout(src.url, 20000)
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return src.isJson ? r.json() : r.text();
-      })
+    return fetchWithTimeout(src.url, 20000, !src.isJson)
       .then(function (data) {
         var parsed;
         if      (src.parser === 'celestrak') parsed = parseCelesTrakJson(data);
