@@ -18,7 +18,6 @@ WV.layers.flights = (function () {
   var MAX_HIST    = 30;
   var FOLLOW_ALT  = 280000;
 
-  var BASE_URL   = '/proxy/opensky';
   var REFRESH_MS = 15000;
 
   // Dead-reckoning state: keyed by icao24
@@ -200,11 +199,7 @@ WV.layers.flights = (function () {
 
   // ── OPENSKY TRACK ENDPOINT ────────────────────────────────
   function fetchTrack(icao24) {
-    return fetch(BASE_URL + '/tracks/all?icao24=' + icao24 + '&time=0')
-      .then(function (r) {
-        if (!r.ok) throw new Error('track ' + r.status);
-        return r.json();
-      })
+    return WV.fetch('opensky', '/tracks/all?icao24=' + icao24 + '&time=0')
       .then(function (data) {
         if (!data || !data.path || data.path.length < 2) return null;
         return data.path
@@ -278,11 +273,7 @@ WV.layers.flights = (function () {
   function fetchAndRender(viewer) {
     if (!enabled) return Promise.resolve();
 
-    return fetch(BASE_URL + '/states/all')
-      .then(function (r) {
-        if (!r.ok) throw new Error('OpenSky ' + r.status);
-        return r.json();
-      })
+    return WV.fetch('opensky', '/states/all')
       .then(function (data) {
         if (!enabled) return;
 
