@@ -875,3 +875,36 @@ body[data-mode="crt"] #overlay-crt { display: block; }
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
+
+/* ── STREAM HEALTH PANEL (in #statusbar) ──────────────────────────────────── */
+#wv-health {
+  display: flex;
+  align-items: center;
+  height: 100%;
+  padding: 0 12px;
+  gap: 12px;
+  font-size: 11px;
+  color: var(--text-dim);
+  overflow-x: auto;
+  flex: 1 1 auto;
+  min-width: 0;
+}
+#wv-health .health-rows { display: flex; gap: 12px; flex-wrap: nowrap; }
+#wv-health .health-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 2px 8px; border-radius: 4px;
+  cursor: pointer;
+  white-space: nowrap;
+}
+#wv-health .health-row:hover { background: var(--accent-glow); }
+#wv-health .dot {
+  width: 7px; height: 7px; border-radius: 50%;
+  display: inline-block;
+}
+#wv-health .dot-green     { background: #5fd97f; box-shadow: 0 0 6px #5fd97f; }
+#wv-health .dot-amber     { background: #f0b340; box-shadow: 0 0 6px #f0b340; }
+#wv-health .dot-red       { background: #e85a5a; box-shadow: 0 0 6px #e85a5a; }
+#wv-health .dot-auth-fail { background: #ff3b6b; box-shadow: 0 0 6px #ff3b6b; }
+#wv-health .dot-unknown   { background: #555; }
+#wv-health .lab { color: var(--text); }
+#wv-health .age, #wv-health .lat { color: var(--text-dim); font-variant-numeric: tabular-nums; }
