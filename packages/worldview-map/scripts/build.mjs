@@ -38,11 +38,13 @@ const PROXY_REWRITES = [
   // the request against the installed extension list and uses operator-
   // configured credentials to talk to the upstream provider.
   {
-    pattern: /'\/proxy\/(opensky|sentinel|nycdot)/g,
+    // Match any provider name (alphanumeric, hyphens, underscores). Build-time rewrite
+    // means new providers added in source don't need a build.mjs edit.
+    pattern: /'\/proxy\/([\w-]+)/g,
     replacement: (_, p) => `'/api/ext-proxy/${EXT_ID}/${p}`,
   },
   {
-    pattern: /"\/proxy\/(opensky|sentinel|nycdot)/g,
+    pattern: /"\/proxy\/([\w-]+)/g,
     replacement: (_, p) => `"/api/ext-proxy/${EXT_ID}/${p}`,
   },
 ];
