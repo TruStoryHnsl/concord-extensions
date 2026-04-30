@@ -871,7 +871,7 @@ body[data-mode="crt"] #overlay-crt { display: block; }
 /* ── STEEL PALETTE: BACKDROP-FILTER BLUR ───────────────── */
 /* Steel palette: translucent panels with frosted blur over the globe.
    Mode overrides (CRT/NVG/FLIR) inherit this since they only override colors. */
-#topbar, #botbar, #leftpanel, #rightpanel, .preset, .panel, .health-panel, .pip-tile {
+#topbar, #statusbar, #panel-layers, #panel-right, .preset, .panel, .health-panel, .pip-tile {
   backdrop-filter: blur(14px) saturate(140%);
   -webkit-backdrop-filter: blur(14px) saturate(140%);
 }
