@@ -84,38 +84,38 @@ Egress paths:
 
 | Path | Purpose |
 |---|---|
-| `dist/src/lib/wv-fetch.js` | Single egress wrapper (rate, quota, cache, health) |
-| `dist/src/lib/photoreal.js` | Installs Google 3D Tiles primitive; falls back to ellipsoid |
-| `dist/src/lib/sources.js` | Source-registry (URL, auth mode, refresh cadence, daily cap) |
-| `dist/src/layers/nws.js` | NWS Alerts polygons (canary, Slice A) |
-| `dist/src/layers/airplanes_live.js` | Mil flights (Slice B) |
-| `dist/src/layers/firms.js` | Wildfire hotspots (Slice B) |
-| `dist/src/layers/nhc.js` | Tropical cyclones (Slice B) |
-| `dist/src/layers/launchlib.js` | Upcoming launches (Slice B) |
-| `dist/src/layers/cf_outages.js` | Cloudflare Radar outages (Slice B) |
-| `dist/src/layers/alpr.js` | OSM Overpass ALPR / Flock (Slice B) |
-| `dist/src/layers/dotcams.js` | Multi-DOT camera aggregator (Slice B) |
-| `dist/src/layers/timezones.js` | Static-GeoJSON tz polygons (Slice B) |
-| `dist/src/layers/g_aqi.js` | Google Air Quality (Slice B) |
-| `dist/src/layers/g_pollen.js` | Google Pollen (Slice B) |
-| `dist/src/ui/health-panel.js` | Bottom-bar health widget |
-| `dist/src/ui/budget-guard.js` | 80%-quota toast |
-| `dist/src/ui/cctv-pip.js` | CCTV PiP grid (Slice B) |
-| `dist/src/ui/search-bar.js` | Google Geocoding fly-to (Slice B) |
-| `dist/src/ui/place-card.js` | Google Places click-card (Slice B) |
-| `dist/data/timezones.geojson` | Static tz polygons (committed asset) |
+| `src/lib/wv-fetch.js` | Single egress wrapper (rate, quota, cache, health) |
+| `src/lib/photoreal.js` | Installs Google 3D Tiles primitive; falls back to ellipsoid |
+| `src/lib/sources.js` | Source-registry (URL, auth mode, refresh cadence, daily cap) |
+| `src/layers/nws.js` | NWS Alerts polygons (canary, Slice A) |
+| `src/layers/airplanes_live.js` | Mil flights (Slice B) |
+| `src/layers/firms.js` | Wildfire hotspots (Slice B) |
+| `src/layers/nhc.js` | Tropical cyclones (Slice B) |
+| `src/layers/launchlib.js` | Upcoming launches (Slice B) |
+| `src/layers/cf_outages.js` | Cloudflare Radar outages (Slice B) |
+| `src/layers/alpr.js` | OSM Overpass ALPR / Flock (Slice B) |
+| `src/layers/dotcams.js` | Multi-DOT camera aggregator (Slice B) |
+| `src/layers/timezones.js` | Static-GeoJSON tz polygons (Slice B) |
+| `src/layers/g_aqi.js` | Google Air Quality (Slice B) |
+| `src/layers/g_pollen.js` | Google Pollen (Slice B) |
+| `src/ui/health-panel.js` | Bottom-bar health widget |
+| `src/ui/budget-guard.js` | 80%-quota toast |
+| `src/ui/cctv-pip.js` | CCTV PiP grid (Slice B) |
+| `src/ui/search-bar.js` | Google Geocoding fly-to (Slice B) |
+| `src/ui/place-card.js` | Google Places click-card (Slice B) |
+| `data/timezones.geojson` | Static tz polygons (committed asset) |
 
 ### Files modified
 
 | Path | Change |
 |---|---|
-| `dist/src/main.js` | Call `WV.Photoreal.install(viewer)` after init; conditionally swap terrain |
-| `dist/src/config.example.js` | Add `GOOGLE_MAPS_KEY`, `FIRMS_KEY`, `LAUNCHLIB_KEY`, `CLOUDFLARE_TOKEN`, `WSDOT_KEY`, `NY511_KEY`, `MASSDOT_KEY` slots |
-| `dist/styles/main.css` | Steel palette pass: `--accent: #9DB9D9`, `--panel-bg: rgba(20,30,45,0.65)`, `--panel-border: rgba(120,150,180,0.22)`, `--text: #c4d0de`, `--text-dim`, `--bar-bg: rgba(10,16,24,0.72)`. Add `backdrop-filter: blur(14px) saturate(140%)` to `.panel`, `.bar`, `.preset`. Drop opacity defaults from 0.90 → 0.65. Existing `body[data-mode="..."]` mode overrides preserved |
-| `dist/index.html` | Add `<div id="wv-health">` slot in bottom bar; add `<div id="wv-pip-grid">` overlay; add `<input id="wv-search">` in top bar |
-| `dist/manifest.json` | Add `data_sources` block (manifest-driven health panel + proxy auto-config); add new `browser_keys` and `needs_proxy` entries |
-| `dist/src/layers/flights.js` | Polish click-track: ensure `_modelEntity` actually swaps, chase cam locks to predicted-position, dead-reckoning interpolates between OpenSky updates at `velocity` m/s |
-| `dist/src/layers/cctv.js` | Wire click-to-pin handler → `wv-cctv-pip` event |
+| `src/main.js` | Call `WV.Photoreal.install(viewer)` after init; conditionally swap terrain |
+| `src/config.example.js` | Add `GOOGLE_MAPS_KEY`, `FIRMS_KEY`, `LAUNCHLIB_KEY`, `CLOUDFLARE_TOKEN`, `WSDOT_KEY`, `NY511_KEY`, `MASSDOT_KEY` slots |
+| `styles/main.css` | Steel palette pass: `--accent: #9DB9D9`, `--panel-bg: rgba(20,30,45,0.65)`, `--panel-border: rgba(120,150,180,0.22)`, `--text: #c4d0de`, `--text-dim`, `--bar-bg: rgba(10,16,24,0.72)`. Add `backdrop-filter: blur(14px) saturate(140%)` to `.panel`, `.bar`, `.preset`. Drop opacity defaults from 0.90 → 0.65. Existing `body[data-mode="..."]` mode overrides preserved |
+| `index.html` | Add `<div id="wv-health">` slot in bottom bar; add `<div id="wv-pip-grid">` overlay; add `<input id="wv-search">` in top bar |
+| `manifest.json` | Add `data_sources` block (manifest-driven health panel + proxy auto-config); add new `browser_keys` and `needs_proxy` entries |
+| `src/layers/flights.js` | Polish click-track: ensure `_modelEntity` actually swaps, chase cam locks to predicted-position, dead-reckoning interpolates between OpenSky updates at `velocity` m/s |
+| `src/layers/cctv.js` | Wire click-to-pin handler → `wv-cctv-pip` event |
 | `concord/server/routers/ext_proxy.py` | Add per-source token bucket; expose `GET /api/ext-proxy/{ext_id}/__healthz/{source}`; register new auth-bearing sources |
 
 ## 5. Safeguards Against API Spend
@@ -142,7 +142,7 @@ The user's `GOOGLE_MAPS_KEY` currently has access to ALL Google APIs and is unre
 
 ## 6. Stream-Health Panel + Auth Verification
 
-Bottom-bar widget driven by `dist/src/lib/sources.js` registry. Each source row:
+Bottom-bar widget driven by `src/lib/sources.js` registry. Each source row:
 
 ```
   ●  opensky          12s ago      88ms     [details]
@@ -163,7 +163,7 @@ Slice A's "auth verification" requirement is satisfied by every pre-existing sou
 
 ## 7. Plane Click-Track Refinement (Slice B)
 
-Existing code at `dist/src/layers/flights.js` already has the `_modelEntity`, `_trackEntity`, chase-cam math, and dead-reckoning scaffolding (`_drPredict`). Bugs/gaps to address:
+Existing code at `src/layers/flights.js` already has the `_modelEntity`, `_trackEntity`, chase-cam math, and dead-reckoning scaffolding (`_drPredict`). Bugs/gaps to address:
 
 1. **Velocity math**: confirm `_drPredict` extrapolates lat/lon using `velocity` (m/s) and `heading` (deg) over `dt` correctly. Rebench against known flights.
 2. **Smooth tween**: when a fresh OpenSky update arrives, snap-vs-tween the model position (currently snaps — visible jump). Replace with a 1.5s linear tween from predicted-pos to actual-pos, so the model glides.
@@ -175,7 +175,7 @@ Existing code at `dist/src/layers/flights.js` already has the `_modelEntity`, `_
 ## 8. CCTV PiP Grid (Slice B)
 
 - Click camera marker → emit `wv-cctv-pin` event with `{id, name, lat, lon, stream_url, format}`.
-- `dist/src/ui/cctv-pip.js` listens, opens a draggable tile (`<video>` for HLS, `<img>` for MJPEG, `<iframe>` for embedded players that block raw stream access).
+- `src/ui/cctv-pip.js` listens, opens a draggable tile (`<video>` for HLS, `<img>` for MJPEG, `<iframe>` for embedded players that block raw stream access).
 - Tile chrome: title bar, drag handle, close button, "fly to" button (recenters globe on the camera).
 - Grid container `<div id="wv-pip-grid">` is fixed-position, top-right by default.
 - **Browser-playable formats only**: MJPEG, HLS, browser-embeddable iframe. RTSP cameras are surfaced in the layer with a "raw stream — not browser-playable" marker; clicking copies the RTSP URL to clipboard for an external player.
