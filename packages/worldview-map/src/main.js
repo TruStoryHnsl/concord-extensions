@@ -96,6 +96,9 @@
   viewer.scene.globe.showGroundAtmosphere     = true;
   viewer.scene.fog.enabled                   = false; // fog adds CPU cost
 
+  // Install Google Photorealistic 3D Tiles (silent fallback to ellipsoid if no key)
+  WV.Photoreal.install(viewer);
+
   // Default 30fps for idle — bumped to 60 when tracking
   viewer.targetFrameRate = 30;
 
