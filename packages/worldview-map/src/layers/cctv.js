@@ -78,10 +78,7 @@ WV.layers.cctv = (function () {
 
   // ── Fetch helpers ─────────────────────────────────────────
   function fetchJson(url) {
-    return fetch(url).then(function (r) {
-      if (!r.ok) throw new Error(r.status);
-      return r.json();
-    });
+    return WV.fetch('cctv_legacy', url);
   }
 
   function fetchTfl() {
