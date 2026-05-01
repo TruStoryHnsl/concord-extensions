@@ -8,3 +8,6 @@ dist/
 *.tgz
 .orrch/
 .worktrees/
+.playwright-mcp/
+.superpowers/
+*.superseded-*
