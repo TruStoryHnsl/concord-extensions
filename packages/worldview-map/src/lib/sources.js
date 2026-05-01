@@ -27,6 +27,17 @@ WV.sources = {
   cf_outages:     { label: 'Net Outages (CF)',      transport: 'rest', direct_url: 'https://api.cloudflare.com/client/v4/radar/annotations/outages?dateRange=24h', refresh_ms: 1800000, rate_per_sec: 0.1, daily_cap: 100, auth: 'browser-key' },
   osm_alpr:       { label: 'ALPR Cameras',          transport: 'rest', direct_url: 'https://overpass-api.de/api/interpreter', refresh_ms: 3600000, rate_per_sec: 0.05, daily_cap: 50, auth: 'none' },
   timezones:      { label: 'Time Zones',            transport: 'static', refresh_ms: 0, rate_per_sec: 1, daily_cap: null, auth: 'none' },
+
+  // Slice B Phase 2 sources
+  dotcams_caltrans:  { label: 'DOT Cams · Caltrans', transport: 'rest', refresh_ms: 600000, rate_per_sec: 0.5, daily_cap: null, auth: 'none' },
+  dotcams_oregondot: { label: 'DOT Cams · Oregon',   transport: 'rest', refresh_ms: 600000, rate_per_sec: 0.5, daily_cap: null, auth: 'none' },
+  dotcams_wsdot:     { label: 'DOT Cams · WSDOT',    transport: 'rest', refresh_ms: 600000, rate_per_sec: 0.5, daily_cap: 1000, auth: 'browser-key' },
+  dotcams_511ny:     { label: 'DOT Cams · 511NY',    transport: 'rest', refresh_ms: 600000, rate_per_sec: 0.5, daily_cap: 1000, auth: 'browser-key' },
+  dotcams_massdot:   { label: 'DOT Cams · MassDOT',  transport: 'rest', refresh_ms: 600000, rate_per_sec: 0.5, daily_cap: 1000, auth: 'browser-key' },
+  g_geocode: { label: 'Google Geocoding',    transport: 'rest', direct_url: 'https://maps.googleapis.com/maps/api/geocode/json', refresh_ms: 0, rate_per_sec: 1, daily_cap: 8000, auth: 'browser-key' },
+  g_places:  { label: 'Google Places (New)', transport: 'rest', direct_url: 'https://places.googleapis.com/v1/places:searchNearby', refresh_ms: 0, rate_per_sec: 1, daily_cap: 4000, auth: 'browser-key' },
+  g_aqi:     { label: 'Air Quality (Google)', transport: 'tile-imagery', refresh_ms: 0, rate_per_sec: 1, daily_cap: 8000, auth: 'browser-key' },
+  g_pollen:  { label: 'Pollen (Google)',      transport: 'tile-imagery', refresh_ms: 0, rate_per_sec: 1, daily_cap: 8000, auth: 'browser-key' },
 };
 
 WV.sourceState = {};

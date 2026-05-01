@@ -48,6 +48,7 @@
           <span class="live-dot"></span>
           <span class="live-label">LIVE</span>
           <span id="clock" class="clock">--:--:-- UTC</span>
+          <input id="wv-search" type="text" placeholder="fly to..." autocomplete="off" />
         </div>
         <div class="tb-right">
           <span class="coord-item">LAT <span id="coord-lat" class="coord-val">--.---</span></span>
@@ -214,6 +215,24 @@
           <span class="layer-count" id="count-weather">—</span>
         </div>
 
+        <div class="layer-row" data-layer="g_aqi">
+          <div class="layer-toggle" id="toggle-g_aqi"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">AIR QUALITY</span>
+            <span class="layer-src">Google AQ</span>
+          </div>
+          <span class="layer-count" id="count-g_aqi">—</span>
+        </div>
+
+        <div class="layer-row" data-layer="g_pollen">
+          <div class="layer-toggle" id="toggle-g_pollen"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">POLLEN</span>
+            <span class="layer-src">Google Pollen</span>
+          </div>
+          <span class="layer-count" id="count-g_pollen">—</span>
+        </div>
+
         <div class="layer-row" data-layer="firms">
           <div class="layer-toggle" id="toggle-firms"><span class="toggle-pip"></span></div>
           <div class="layer-meta">
@@ -248,6 +267,15 @@
             <span class="layer-src">TfL + AMOS Global</span>
           </div>
           <span class="layer-count" id="count-cctv">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="dotcams">
+          <div class="layer-toggle" id="toggle-dotcams"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">DOT CAMERAS</span>
+            <span class="layer-src">Caltrans + 4 partners</span>
+          </div>
+          <span class="layer-count" id="count-dotcams">0</span>
         </div>
 
         <div class="layer-row" data-layer="osm_alpr">
@@ -414,6 +442,11 @@
   <script src="src/layers/cf_outages.js"></script>
   <script src="src/layers/osm_alpr.js"></script>
   <script src="src/layers/timezones.js"></script>
+  <script src="src/layers/dotcams.js"></script>
+  <script src="src/layers/g_aqi.js"></script>
+  <script src="src/layers/g_pollen.js"></script>
+  <script src="src/ui/search-bar.js"></script>
+  <script src="src/ui/place-card.js"></script>
   <script src="src/main.js"></script>
 
   <div id="wv-pip-grid"></div>
