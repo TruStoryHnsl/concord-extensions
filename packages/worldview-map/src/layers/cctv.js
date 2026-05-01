@@ -78,10 +78,7 @@ WV.layers.cctv = (function () {
 
   // ── Fetch helpers ─────────────────────────────────────────
   function fetchJson(url) {
-    return fetch(url).then(function (r) {
-      if (!r.ok) throw new Error(r.status);
-      return r.json();
-    });
+    return WV.fetch('cctv_legacy', url);
   }
 
   function fetchTfl() {
@@ -116,6 +113,10 @@ WV.layers.cctv = (function () {
         id: {
           _wvType: 'cctv',
           _wvImg:  cam.img,
+          _wvLat:  cam.lat,
+          _wvLon:  cam.lon,
+          _wvName: cam.name,
+          _wvCity: cam.city,
           _wvMeta: [
             { key: 'TYPE',  val: 'CCTV CAMERA' },
             { key: 'NAME',  val: cam.name },

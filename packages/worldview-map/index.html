@@ -48,6 +48,7 @@
           <span class="live-dot"></span>
           <span class="live-label">LIVE</span>
           <span id="clock" class="clock">--:--:-- UTC</span>
+          <input id="wv-search" type="text" placeholder="fly to..." autocomplete="off" />
         </div>
         <div class="tb-right">
           <span class="coord-item">LAT <span id="coord-lat" class="coord-val">--.---</span></span>
@@ -101,6 +102,15 @@
           <span class="layer-count" id="count-satellites">0</span>
         </div>
 
+        <div class="layer-row" data-layer="launchlib">
+          <div class="layer-toggle" id="toggle-launchlib"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">LAUNCHES</span>
+            <span class="layer-src">Launch Library 2</span>
+          </div>
+          <span class="layer-count" id="count-launchlib">0</span>
+        </div>
+
         <div class="layer-row" data-layer="flights">
           <div class="layer-toggle" id="toggle-flights"><span class="toggle-pip"></span></div>
           <div class="layer-meta">
@@ -117,6 +127,15 @@
             <span class="layer-src">adsb.lol</span>
           </div>
           <span class="layer-count" id="count-military">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="airplanes_live">
+          <div class="layer-toggle" id="toggle-airplanes_live"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">MIL LIVE</span>
+            <span class="layer-src">airplanes.live</span>
+          </div>
+          <span class="layer-count" id="count-airplanes_live">0</span>
         </div>
 
         <div class="layer-row" data-layer="maritime">
@@ -160,6 +179,15 @@
           <span class="layer-count" id="count-jamming">0</span>
         </div>
 
+        <div class="layer-row" data-layer="cf_outages">
+          <div class="layer-toggle" id="toggle-cf_outages"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">NET OUTAGES</span>
+            <span class="layer-src">Cloudflare Radar</span>
+          </div>
+          <span class="layer-count" id="count-cf_outages">0</span>
+        </div>
+
         <div class="layer-row" data-layer="seismic">
           <div class="layer-toggle" id="toggle-seismic"><span class="toggle-pip"></span></div>
           <div class="layer-meta">
@@ -169,6 +197,15 @@
           <span class="layer-count" id="count-seismic">0</span>
         </div>
 
+        <div class="layer-row" data-layer="nws">
+          <div class="layer-toggle" id="toggle-nws"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">NWS ALERTS</span>
+            <span class="layer-src">api.weather.gov</span>
+          </div>
+          <span class="layer-count" id="count-nws">0</span>
+        </div>
+
         <div class="layer-row" data-layer="weather">
           <div class="layer-toggle" id="toggle-weather"><span class="toggle-pip"></span></div>
           <div class="layer-meta">
@@ -176,6 +213,42 @@
             <span class="layer-src">Iowa State NEXRAD</span>
           </div>
           <span class="layer-count" id="count-weather">—</span>
+        </div>
+
+        <div class="layer-row" data-layer="g_aqi">
+          <div class="layer-toggle" id="toggle-g_aqi"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">AIR QUALITY</span>
+            <span class="layer-src">Google AQ</span>
+          </div>
+          <span class="layer-count" id="count-g_aqi">—</span>
+        </div>
+
+        <div class="layer-row" data-layer="g_pollen">
+          <div class="layer-toggle" id="toggle-g_pollen"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">POLLEN</span>
+            <span class="layer-src">Google Pollen</span>
+          </div>
+          <span class="layer-count" id="count-g_pollen">—</span>
+        </div>
+
+        <div class="layer-row" data-layer="firms">
+          <div class="layer-toggle" id="toggle-firms"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">WILDFIRES</span>
+            <span class="layer-src">NASA FIRMS</span>
+          </div>
+          <span class="layer-count" id="count-firms">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="nhc">
+          <div class="layer-toggle" id="toggle-nhc"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">NHC STORMS</span>
+            <span class="layer-src">NOAA NHC</span>
+          </div>
+          <span class="layer-count" id="count-nhc">0</span>
         </div>
 
         <div class="layer-row" data-layer="traffic">
@@ -196,6 +269,24 @@
           <span class="layer-count" id="count-cctv">0</span>
         </div>
 
+        <div class="layer-row" data-layer="dotcams">
+          <div class="layer-toggle" id="toggle-dotcams"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">DOT CAMERAS</span>
+            <span class="layer-src">Caltrans + 4 partners</span>
+          </div>
+          <span class="layer-count" id="count-dotcams">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="osm_alpr">
+          <div class="layer-toggle" id="toggle-osm_alpr"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">ALPR CAMERAS</span>
+            <span class="layer-src">OpenStreetMap</span>
+          </div>
+          <span class="layer-count" id="count-osm_alpr">0</span>
+        </div>
+
         <div class="layer-row" data-layer="ports">
           <div class="layer-toggle" id="toggle-ports"><span class="toggle-pip"></span></div>
           <div class="layer-meta">
@@ -203,6 +294,15 @@
             <span class="layer-src">HDX / NGA WPI</span>
           </div>
           <span class="layer-count" id="count-ports">0</span>
+        </div>
+
+        <div class="layer-row" data-layer="timezones">
+          <div class="layer-toggle" id="toggle-timezones"><span class="toggle-pip"></span></div>
+          <div class="layer-meta">
+            <span class="layer-name">TIME ZONES</span>
+            <span class="layer-src">IANA tz</span>
+          </div>
+          <span class="layer-count" id="count-timezones">0</span>
         </div>
 
       </div>
@@ -293,6 +393,7 @@
 
     <!-- ── BOTTOM STATUS BAR ─────────────────────────────────── -->
     <footer id="statusbar">
+      <div id="wv-health"></div>
       <span class="sb-item">MODE: <span id="sb-mode" class="sb-val">NVG</span></span>
       <span class="sb-sep">///</span>
       <span class="sb-item">LAYERS: <span id="sb-layers" class="sb-val">0</span> ACTIVE</span>
@@ -308,6 +409,10 @@
   <script src="https://cesium.com/downloads/cesiumjs/releases/1.114/Build/Cesium/Cesium.js"></script>
   <!-- satellite.js v4.1.4 — v5 does not exist on npm, this is the correct latest version -->
   <script src="https://cdn.jsdelivr.net/npm/satellite.js@4.1.4/dist/satellite.min.js"></script>
+  <!-- Source registry — single source of truth for every data source -->
+  <script src="src/lib/sources.js"></script>
+  <script src="src/lib/wv-fetch.js"></script>
+  <script src="src/lib/photoreal.js"></script>
   <!-- Per-user settings overlay (Settings button + key-entry modal).
        Mounts itself on DOMContentLoaded; safe to load before the
        config bridge populates window.WV.config because settings.js
@@ -315,18 +420,35 @@
   <script src="src/settings.js"></script>
   <script src="src/ui/presets.js"></script>
   <script src="src/ui/controls.js"></script>
+  <script src="src/ui/health-panel.js"></script>
+  <script src="src/ui/budget-guard.js"></script>
+  <script src="src/ui/cctv-pip.js"></script>
   <script src="src/layers/satellites.js"></script>
   <script src="src/layers/flights.js"></script>
   <script src="src/layers/military.js"></script>
   <script src="src/layers/maritime.js"></script>
   <script src="src/layers/jamming.js"></script>
   <script src="src/layers/seismic.js"></script>
+  <script src="src/layers/nws.js"></script>
   <script src="src/layers/weather.js"></script>
   <script src="src/layers/traffic.js"></script>
   <script src="src/layers/cctv.js"></script>
   <script src="src/layers/sentinel.js"></script>
   <script src="src/layers/ports.js"></script>
+  <script src="src/layers/airplanes_live.js"></script>
+  <script src="src/layers/firms.js"></script>
+  <script src="src/layers/nhc.js"></script>
+  <script src="src/layers/launchlib.js"></script>
+  <script src="src/layers/cf_outages.js"></script>
+  <script src="src/layers/osm_alpr.js"></script>
+  <script src="src/layers/timezones.js"></script>
+  <script src="src/layers/dotcams.js"></script>
+  <script src="src/layers/g_aqi.js"></script>
+  <script src="src/layers/g_pollen.js"></script>
+  <script src="src/ui/search-bar.js"></script>
+  <script src="src/ui/place-card.js"></script>
   <script src="src/main.js"></script>
 
+  <div id="wv-pip-grid"></div>
 </body>
 </html>

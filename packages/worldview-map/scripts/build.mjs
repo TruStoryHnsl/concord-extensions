@@ -38,11 +38,13 @@ const PROXY_REWRITES = [
   // the request against the installed extension list and uses operator-
   // configured credentials to talk to the upstream provider.
   {
-    pattern: /'\/proxy\/(opensky|sentinel|nycdot)/g,
+    // Match any provider name (alphanumeric, hyphens, underscores). Build-time rewrite
+    // means new providers added in source don't need a build.mjs edit.
+    pattern: /'\/proxy\/([\w-]+)/g,
     replacement: (_, p) => `'/api/ext-proxy/${EXT_ID}/${p}`,
   },
   {
-    pattern: /"\/proxy\/(opensky|sentinel|nycdot)/g,
+    pattern: /"\/proxy\/([\w-]+)/g,
     replacement: (_, p) => `"/api/ext-proxy/${EXT_ID}/${p}`,
   },
 ];
@@ -68,6 +70,9 @@ async function main() {
 
   await copyTree(resolve(SRC, "src"), resolve(DIST, "src"));
   await copyTree(resolve(SRC, "styles"), resolve(DIST, "styles"));
+  if (existsSync(resolve(SRC, "data"))) {
+    await copyTree(resolve(SRC, "data"), resolve(DIST, "data"));
+  }
   await copyFile(resolve(SRC, "index.html"), resolve(DIST, "index.html"));
   await copyFile(
     resolve(SRC, "manifest.json"),
@@ -129,7 +134,12 @@ async function main() {
     "  // mean the layers parse against an undefined WV.config. The",
     "  // endpoint is small (a single JSON object) and only fired once on",
     "  // first cold launch, so the brief blocking call is acceptable.",
-    "  var hasAny = stored && (stored.cesium_token || stored.CESIUM_TOKEN);",
+    "  // Either Cesium Ion or Google Maps is enough to render a globe; only fall back",
+    "  // to /public-config when BOTH are missing (so a Google-only setup doesn't 404).",
+    "  var hasAny = stored && (",
+    "    stored.cesium_token || stored.CESIUM_TOKEN ||",
+    "    stored.google_maps_key || stored.GOOGLE_MAPS_KEY",
+    "  );",
     "  if (!hasAny) {",
     "    try {",
     "      var xhr = new XMLHttpRequest();",
@@ -158,7 +168,14 @@ async function main() {
     '    SENTINEL_CLIENT_ID:     stored.sentinel_client_id     || stored.SENTINEL_CLIENT_ID     || "",',
     '    SENTINEL_CLIENT_SECRET: stored.sentinel_client_secret || stored.SENTINEL_CLIENT_SECRET || "",',
     '    TOMTOM_KEY:             stored.tomtom_key             || stored.TOMTOM_KEY             || "",',
-    '    WINDY_KEY:              stored.windy_key              || stored.WINDY_KEY              || ""',
+    '    WINDY_KEY:              stored.windy_key              || stored.WINDY_KEY              || "",',
+    '    GOOGLE_MAPS_KEY:        stored.google_maps_key        || stored.GOOGLE_MAPS_KEY        || "",',
+    '    FIRMS_MAP_KEY:          stored.firms_map_key          || stored.FIRMS_MAP_KEY          || "",',
+    '    LAUNCHLIB_TOKEN:        stored.launchlib_token        || stored.LAUNCHLIB_TOKEN        || "",',
+    '    CLOUDFLARE_RADAR_TOKEN: stored.cloudflare_radar_token || stored.CLOUDFLARE_RADAR_TOKEN || "",',
+    '    WSDOT_KEY:              stored.wsdot_key              || stored.WSDOT_KEY              || "",',
+    '    NY511_KEY:              stored.ny511_key              || stored.NY511_KEY              || "",',
+    '    MASSDOT_KEY:            stored.massdot_key            || stored.MASSDOT_KEY            || ""',
     "  };",
     "}());",
     "</script>",

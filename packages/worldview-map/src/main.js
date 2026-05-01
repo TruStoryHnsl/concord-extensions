@@ -4,7 +4,16 @@
   'use strict';
 
   // ── TOKEN ─────────────────────────────────────────────────
-  Cesium.Ion.defaultAccessToken = WV.config.CESIUM_TOKEN;
+  // Only assign Ion token if the user has configured one. Setting it to an
+  // empty string still triggers Ion asset fetches (with blank token → 401 on
+  // every World Terrain / base imagery tile request, which then breaks the
+  // entire viewer init). When no token is set, we skip terrain entirely and
+  // rely on either Photoreal 3D Tiles (if GOOGLE_MAPS_KEY is set) or the
+  // default ellipsoid surface as a graceful fallback.
+  var _hasCesiumToken = !!(WV.config.CESIUM_TOKEN || '').trim();
+  if (_hasCesiumToken) {
+    Cesium.Ion.defaultAccessToken = WV.config.CESIUM_TOKEN;
+  }
 
   // ── STAR BACKGROUND ──────────────────────────────────────
   // Procedurally generated star canvas injected behind the WebGL canvas.
@@ -53,8 +62,11 @@
   }());
 
   // ── VIEWER ────────────────────────────────────────────────
-  var viewer = new Cesium.Viewer('cesiumContainer', {
-    terrain:                         Cesium.Terrain.fromWorldTerrain(),
+  // World Terrain requires a Cesium Ion token (asset 1). Skip the terrain
+  // arg entirely when the user hasn't configured a token; the viewer falls
+  // back to a smooth ellipsoid, which Photoreal 3D Tiles will replace anyway
+  // when GOOGLE_MAPS_KEY is set.
+  var _viewerOpts = {
     animation:                       false,
     baseLayerPicker:                 false,
     fullscreenButton:                false,
@@ -72,7 +84,18 @@
     // Only render when scene actually changes — biggest CPU win
     requestRenderMode:               true,
     maximumRenderTimeChange:         Infinity,
-  });
+  };
+  if (_hasCesiumToken) {
+    _viewerOpts.terrain = Cesium.Terrain.fromWorldTerrain();
+  } else {
+    // Cesium's built-in default Ion token (baked into Cesium.js) still 401s
+    // when the user hasn't set their own. Suppress the default base imagery
+    // layer so we don't get console errors. The Carto dark-labels layer
+    // below provides place-name imagery and Photoreal 3D Tiles (when the
+    // Google key is set) provides the surface — neither needs Ion.
+    _viewerOpts.baseLayer = false;
+  }
+  var viewer = new Cesium.Viewer('cesiumContainer', _viewerOpts);
 
   // Hide the low-res default skybox — replaced by our star canvas
   viewer.scene.skyBox.show        = false;
@@ -96,6 +119,9 @@
   viewer.scene.globe.showGroundAtmosphere     = true;
   viewer.scene.fog.enabled                   = false; // fog adds CPU cost
 
+  // Install Google Photorealistic 3D Tiles (silent fallback to ellipsoid if no key)
+  WV.Photoreal.install(viewer);
+
   // Default 30fps for idle — bumped to 60 when tracking
   viewer.targetFrameRate = 30;
 
@@ -106,6 +132,11 @@
   // ── UI INIT ───────────────────────────────────────────────
   WV.Controls.init();
   WV.Presets.init(viewer);
+  WV.HealthPanel.init();
+  WV.BudgetGuard.init();
+  WV.CctvPip.init();
+  WV.SearchBar.init();
+  WV.PlaceCard.init(viewer);
 
   // ── 2D / 3D SCENE TOGGLE ─────────────────────────────────
   var starCanvas = document.querySelector('#cesiumContainer canvas[style*="z-index:0"]');
@@ -253,6 +284,20 @@
     if (idObj) {
       WV.Controls.showIntel(idObj._wvMeta);
 
+      // CCTV: open live feed in PiP grid
+      if (idObj._wvType === 'cctv' && WV.CctvPip) {
+        var _camUrl = idObj._wvImg || '';
+        var _camFmt = WV.CctvPip.detectFormat(_camUrl);
+        var _camId  = (idObj._wvName || '') + '@' + (idObj._wvLat || 0) + ',' + (idObj._wvLon || 0);
+        document.dispatchEvent(new CustomEvent('wv-cctv-pin', { detail: {
+          id:         _camId,
+          name:       idObj._wvName || idObj._wvCity || 'CAM',
+          lat:        idObj._wvLat,
+          lon:        idObj._wvLon,
+          stream_url: _camUrl,
+          format:     _camFmt,
+        }}));
+      }
       // Auto-track flights: lock camera on clicked aircraft + show path
       if (idObj._wvType === 'flight' && idObj._wvIcao && WV.layers.flights) {
         WV.layers.flights.select(idObj._wvIcao);

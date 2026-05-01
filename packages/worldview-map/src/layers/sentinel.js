@@ -8,6 +8,9 @@
 //   NIR   — FALSE-COLOR (B08/B04/B03 — vegetation = red)
 //   SWIR  — SWIR (B12/B8A/B04 — fire/burn scars)
 //   NDVI  — NDVI (vegetation index, green = healthy)
+//
+// Note: tile fetches are handled by Cesium.WebMapServiceImageryProvider (not raw
+// fetch). Source health is wired via WV.sourceState.sentinel on imagery rebuild.
 
 window.WV = window.WV || {};
 WV.layers = WV.layers || {};
@@ -70,6 +73,11 @@ WV.layers.sentinel = (function () {
       })
     );
     il.alpha = 0.92;
+    // Record that imagery was queued successfully (tiles fetched by Cesium internally)
+    if (WV.sourceState && WV.sourceState.sentinel) {
+      WV.sourceState.sentinel.last_success_ts = Date.now();
+      WV.sourceState.sentinel.last_error = null;
+    }
     return il;
   }
 

@@ -18,10 +18,6 @@ WV.layers.military = (function () {
   var MAX_HIST    = 20;
   var FOLLOW_ALT  = 280000;
 
-  var API_URL        = 'https://api.adsb.lol/v2/mil';
-  var API_URL_PROXY1 = 'https://corsproxy.io/?' + encodeURIComponent(API_URL);
-  var API_URL_PROXY2 = 'https://api.codetabs.com/v1/proxy?quest=' + encodeURIComponent(API_URL);
-  var API_URL_PROXY3 = 'https://api.allorigins.win/raw?url=' + encodeURIComponent(API_URL);
 
   // ── PLANE ICON ───────────────────────────────────────────────
   // Amber top-down aircraft silhouette matching comm flights shape
@@ -97,30 +93,7 @@ WV.layers.military = (function () {
   function fetchAndRender(viewer) {
     if (!enabled) return Promise.resolve();
 
-    var fetchData = fetch(API_URL)
-      .then(function (r) {
-        if (!r.ok) throw new Error('adsb.lol error: ' + r.status);
-        return r.json();
-      })
-      .catch(function (err) {
-        console.warn('military direct failed (' + err.message + '), trying corsproxy...');
-        return fetch(API_URL_PROXY1)
-          .then(function (r) {
-            if (!r.ok) throw new Error('corsproxy error: ' + r.status);
-            return r.json();
-          })
-          .catch(function (err2) {
-            console.warn('military corsproxy failed (' + err2.message + '), trying codetabs...');
-            return fetch(API_URL_PROXY2)
-              .then(function (r) { return r.json(); })
-              .catch(function (err3) {
-                console.warn('military codetabs failed (' + err3.message + '), trying allorigins...');
-                return fetch(API_URL_PROXY3).then(function (r) { return r.json(); });
-              });
-          });
-      });
-
-    return fetchData
+    return WV.fetch('military', '/v2/mil')
       .then(function (data) {
         if (!enabled) return;
 

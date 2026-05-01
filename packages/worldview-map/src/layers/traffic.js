@@ -6,6 +6,9 @@
 //   Red    = heavy congestion / standstill
 //
 // Requires TOMTOM_KEY in config.js (free at developer.tomtom.com, 2500 req/day)
+//
+// Note: tile fetches are handled by Cesium.UrlTemplateImageryProvider (not raw
+// fetch). Source health is wired via WV.sourceState.tomtom on layer build/refresh.
 
 window.WV = window.WV || {};
 WV.layers = WV.layers || {};
@@ -34,6 +37,11 @@ WV.layers.traffic = (function () {
 
     var il = viewer.imageryLayers.addImageryProvider(provider);
     il.alpha = 0.85;
+    // Record that the layer was built successfully (tiles fetched by Cesium internally)
+    if (WV.sourceState && WV.sourceState.tomtom) {
+      WV.sourceState.tomtom.last_success_ts = Date.now();
+      WV.sourceState.tomtom.last_error = null;
+    }
     return il;
   }
 

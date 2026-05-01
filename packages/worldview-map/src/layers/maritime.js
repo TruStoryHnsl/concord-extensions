@@ -44,9 +44,9 @@ WV.layers.maritime = (function () {
   function fetchWithTimeout(url, ms) {
     var ctrl = new AbortController();
     var tid  = setTimeout(function () { ctrl.abort(); }, ms);
-    return fetch(url, { signal: ctrl.signal })
-      .then(function (r) { clearTimeout(tid); return r; })
-      .catch(function (e) { clearTimeout(tid); throw e; });
+    return WV.fetch('aisstream', url, { signal: ctrl.signal })
+      .then(function (data) { clearTimeout(tid); return data; })
+      .catch(function (e)   { clearTimeout(tid); throw e; });
   }
 
   // ── SHIP ICON ─────────────────────────────────────────────
@@ -194,6 +194,8 @@ WV.layers.maritime = (function () {
 
     socket.onopen = function () {
       wsRetries = 0;
+      WV.sourceState.aisstream.last_success_ts = Date.now();
+      WV.sourceState.aisstream.last_error = null;
       socket.send(JSON.stringify({
         APIkey:             key,
         BoundingBoxes:      [[[-90, -180], [90, 180]]],
@@ -204,6 +206,7 @@ WV.layers.maritime = (function () {
 
     socket.onmessage = function (evt) {
       if (!enabled) return;
+      WV.sourceState.aisstream.last_success_ts = Date.now();
       try {
         var msg = JSON.parse(evt.data);
         if (msg.MessageType !== 'PositionReport') return;
@@ -234,9 +237,12 @@ WV.layers.maritime = (function () {
       } catch (e) { /* ignore malformed */ }
     };
 
-    socket.onerror = function () { /* reason appears in onclose */ };
+    socket.onerror = function () {
+      WV.sourceState.aisstream.last_error = 'ws error';
+    };
 
     socket.onclose = function (evt) {
+      WV.sourceState.aisstream.last_error = 'closed: ' + evt.code;
       if (renderTimer) { clearInterval(renderTimer); renderTimer = null; }
       console.warn('maritime WS closed — code:', evt.code, 'reason:', evt.reason || '(none)');
       if (!enabled) return;
@@ -308,10 +314,6 @@ WV.layers.maritime = (function () {
 
     var url = REST_SOURCES[restSourceIdx];
     fetchWithTimeout(url, 15000)
-      .then(function (r) {
-        if (!r.ok) throw new Error('HTTP ' + r.status);
-        return r.json();
-      })
       .then(function (data) {
         var parsed = parseDigitraffic(data);
         if (parsed.length === 0) throw new Error('no vessels in response');
