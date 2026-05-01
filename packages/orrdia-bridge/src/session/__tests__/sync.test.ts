@@ -1,6 +1,10 @@
+// NOTE: v0.2.0 party-cmd reducer tests authored same-session as feature —
+// see PLAN.md INS-009 entry; cold-reader pass needed before declaring production-ready.
+
 import { describe, expect, it } from "vitest"
 import {
   applyEvent,
+  applyPartyCommand,
   makeInitialSyncState,
   projectPosition,
   SyncState,
@@ -13,6 +17,12 @@ describe("makeInitialSyncState", () => {
     expect(s.status).toBe("idle")
     expect(s.positionMs).toBe(0)
     expect(s.hostId).toBe("@host")
+  })
+
+  it("starts with empty queue and cursor=-1 (v0.2.0)", () => {
+    const s = makeInitialSyncState("@host")
+    expect(s.queue).toEqual([])
+    expect(s.queueCursor).toBe(-1)
   })
 })
 
@@ -101,5 +111,143 @@ describe("projectPosition", () => {
       rate: 2.0,
     }
     expect(projectPosition(s, 1500)).toBe(3000)
+  })
+})
+
+describe("applyPartyCommand (v0.2.0)", () => {
+  const base = makeInitialSyncState("@host")
+
+  it("queue-add appends to the queue with addedBy and addedAtMs", () => {
+    const s = applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@alice", atMs: 1000 },
+      "@me",
+    )
+    expect(s.queue).toHaveLength(1)
+    expect(s.queue[0]).toEqual({ itemId: "it-1", addedBy: "@alice", addedAtMs: 1000 })
+    expect(s.queueCursor).toBe(-1) // queue-add does NOT auto-advance cursor
+  })
+
+  it("queue-add is intentionally NOT idempotent — applying twice creates two entries", () => {
+    // Spec note: dedup happens at the network/causality layer, not here.
+    let s = applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@a", atMs: 1 },
+      "@me",
+    )
+    s = applyPartyCommand(
+      s,
+      { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@a", atMs: 1 },
+      "@me",
+    )
+    expect(s.queue).toHaveLength(2)
+  })
+
+  it("party-cmd-select moves cursor + sets itemId from queue, status=paused, position=0", () => {
+    let s = applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@a", atMs: 1 },
+      "@me",
+    )
+    s = applyPartyCommand(
+      s,
+      { type: "party-cmd-queue-add", itemId: "it-2", addedBy: "@a", atMs: 2 },
+      "@me",
+    )
+    s = applyPartyCommand(s, { type: "party-cmd-select", queueIndex: 1, atMs: 100 }, "@me")
+    expect(s.queueCursor).toBe(1)
+    expect(s.itemId).toBe("it-2")
+    expect(s.status).toBe("paused")
+    expect(s.positionMs).toBe(0)
+  })
+
+  it("party-cmd-select with out-of-range index leaves state unchanged", () => {
+    const s = applyPartyCommand(
+      base,
+      { type: "party-cmd-select", queueIndex: 5, atMs: 100 },
+      "@me",
+    )
+    expect(s).toBe(base)
+  })
+
+  it("party-cmd-play sets status=playing", () => {
+    const s = applyPartyCommand(base, { type: "party-cmd-play", atMs: 50 }, "@me")
+    expect(s.status).toBe("playing")
+    expect(s.positionAtMs).toBe(50)
+  })
+
+  it("party-cmd-pause sets status=paused", () => {
+    const playing: SyncState = { ...base, status: "playing", positionAtMs: 10 }
+    const s = applyPartyCommand(playing, { type: "party-cmd-pause", atMs: 75 }, "@me")
+    expect(s.status).toBe("paused")
+    expect(s.positionAtMs).toBe(75)
+  })
+
+  it("party-cmd-next advances cursor when in range", () => {
+    let s = applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "a", addedBy: "@x", atMs: 1 },
+      "@me",
+    )
+    s = applyPartyCommand(
+      s,
+      { type: "party-cmd-queue-add", itemId: "b", addedBy: "@x", atMs: 2 },
+      "@me",
+    )
+    s = applyPartyCommand(s, { type: "party-cmd-select", queueIndex: 0, atMs: 3 }, "@me")
+    s = applyPartyCommand(s, { type: "party-cmd-next", atMs: 4 }, "@me")
+    expect(s.queueCursor).toBe(1)
+    expect(s.itemId).toBe("b")
+  })
+
+  it("party-cmd-next is a no-op past end of queue", () => {
+    let s = applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "a", addedBy: "@x", atMs: 1 },
+      "@me",
+    )
+    s = applyPartyCommand(s, { type: "party-cmd-select", queueIndex: 0, atMs: 2 }, "@me")
+    const before = s
+    s = applyPartyCommand(s, { type: "party-cmd-next", atMs: 3 }, "@me")
+    expect(s).toBe(before)
+  })
+
+  it("party-cmd-prev moves cursor backward when >= 0", () => {
+    let s = applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "a", addedBy: "@x", atMs: 1 },
+      "@me",
+    )
+    s = applyPartyCommand(
+      s,
+      { type: "party-cmd-queue-add", itemId: "b", addedBy: "@x", atMs: 2 },
+      "@me",
+    )
+    s = applyPartyCommand(s, { type: "party-cmd-select", queueIndex: 1, atMs: 3 }, "@me")
+    s = applyPartyCommand(s, { type: "party-cmd-prev", atMs: 4 }, "@me")
+    expect(s.queueCursor).toBe(0)
+    expect(s.itemId).toBe("a")
+  })
+
+  it("party-cmd-prev is a no-op below 0", () => {
+    let s = applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "a", addedBy: "@x", atMs: 1 },
+      "@me",
+    )
+    s = applyPartyCommand(s, { type: "party-cmd-select", queueIndex: 0, atMs: 2 }, "@me")
+    const before = s
+    s = applyPartyCommand(s, { type: "party-cmd-prev", atMs: 3 }, "@me")
+    expect(s).toBe(before)
+  })
+
+  it("does not mutate the input state", () => {
+    const before: SyncState = { ...base, queue: [...base.queue] }
+    applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "x", addedBy: "@y", atMs: 1 },
+      "@me",
+    )
+    expect(base).toEqual(before)
   })
 })
