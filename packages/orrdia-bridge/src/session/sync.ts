@@ -81,6 +81,15 @@ export function applyEvent(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _localId: string,
 ): SyncState {
+  // Defensive: an upstream sender may post a malformed SyncEvent (e.g.
+  // network corruption, version-mismatched extension talking to an older
+  // shell, or simply garbage). Return state unchanged for unknown
+  // discriminants rather than letting `undefined` propagate. Cast to
+  // `string` so TypeScript's exhaustiveness checker still complains if a
+  // new variant is added without a case.
+  if (typeof ev !== "object" || ev === null || typeof (ev as { type?: unknown }).type !== "string") {
+    return state
+  }
   switch (ev.type) {
     case "select":
       return {
@@ -112,6 +121,8 @@ export function applyEvent(
       }
     case "host-transfer":
       return { ...state, hostId: ev.newHostId }
+    default:
+      return state
   }
 }
 
@@ -119,9 +130,14 @@ export function applyEvent(
  * Apply a Party-mode command to the sync state. Pure / deterministic.
  *
  * Notes:
- *  - queue-add is intentionally NOT idempotent: applying the same add
- *    twice produces two queue entries. Callers (or the network channel)
- *    must dedupe on a higher layer if needed (e.g., add-id).
+ *  - queue-add deduplicates on (addedBy, atMs): an optimistic local apply
+ *    plus its own remote echo with the same (addedBy, atMs) tuple yields
+ *    one entry, not two. Different users adding the same item at the
+ *    same atMs (extremely unlikely with millisecond timestamps) are
+ *    treated as duplicates and the second one is dropped — this favors
+ *    the no-double-queue UX over the no-lost-add corner case. Network
+ *    layers that re-clock atMs must preserve the original or callers
+ *    will see lost adds.
  *  - select clamps the queueIndex; an out-of-range index leaves the state
  *    unchanged.
  *  - next / prev are bounds-clamped: at end of queue, next is a no-op;
@@ -136,8 +152,25 @@ export function applyPartyCommand(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _localId: string,
 ): SyncState {
+  // Defensive: malformed commands from the network drop to no-op rather
+  // than throwing. v0.3.2 cold-reader pass discovered the original
+  // implementation would propagate `undefined` for unknown discriminants.
+  if (typeof cmd !== "object" || cmd === null || typeof (cmd as { type?: unknown }).type !== "string") {
+    return state
+  }
   switch (cmd.type) {
-    case "party-cmd-queue-add":
+    case "party-cmd-queue-add": {
+      // Dedup on (addedBy, addedAtMs): the optimistic local apply uses
+      // the same wall-clock atMs as the remote echo (the controller emits
+      // the cmd, applies optimistically, then receives its own echo via
+      // bridge.onStateEvent — both share the original atMs). Two
+      // different users adding the same item must use distinct atMs to
+      // both land; in practice atMs is millisecond-granular so collisions
+      // require a deliberate clock collision.
+      const dup = state.queue.some(
+        (q) => q.addedBy === cmd.addedBy && q.addedAtMs === cmd.atMs && q.itemId === cmd.itemId,
+      )
+      if (dup) return state
       return {
         ...state,
         queue: [
@@ -145,6 +178,7 @@ export function applyPartyCommand(
           { itemId: cmd.itemId, addedBy: cmd.addedBy, addedAtMs: cmd.atMs },
         ],
       }
+    }
     case "party-cmd-select": {
       if (cmd.queueIndex < 0 || cmd.queueIndex >= state.queue.length) return state
       const target = state.queue[cmd.queueIndex]
@@ -187,6 +221,8 @@ export function applyPartyCommand(
         positionAtMs: cmd.atMs,
       }
     }
+    default:
+      return state
   }
 }
 

@@ -12,15 +12,17 @@
  * and the surface keeps a clean injection seam for tests.
  */
 
-import { directStreamUrl } from "../engine/stream-url"
+import { directStreamUrl, hlsStreamUrl } from "../engine/stream-url"
 import { AuthSession, MediaItem } from "../engine/types"
 import {
+  applyEvent,
   applyPartyCommand,
   makeInitialSyncState,
   PartyCommand,
   SyncState,
 } from "../session/sync"
 import { clearChildren } from "./dom-util"
+import { attachVideoSource, AttachVideoSourceOpts } from "./video-attach"
 
 export interface MountPartyTVOpts {
   session: AuthSession
@@ -28,6 +30,10 @@ export interface MountPartyTVOpts {
   hostId: string
   /** Optional lookup so the TV banner can show item titles instead of bare IDs. */
   itemLookup?: (itemId: string) => MediaItem | undefined
+  /** When true, request the HLS stream URL on item swap. Default false (direct). */
+  useHls?: boolean
+  /** Test injection seam for the hls.js attach pipeline. */
+  videoAttachOpts?: AttachVideoSourceOpts
 }
 
 export interface PartyTVHandle {
@@ -35,6 +41,15 @@ export interface PartyTVHandle {
   getState: () => SyncState
   /** Apply an incoming PartyCommand and update the DOM accordingly. */
   applyExternalCommand: (cmd: PartyCommand) => void
+  /**
+   * Apply an incoming `concord:host_transfer` payload. Routes a
+   * `host-transfer` SyncEvent into the reducer so `state.hostId` flips
+   * to the new host. The TV banner does not display the host directly,
+   * so the visible effect is internal state — but other surfaces
+   * reading `getState().hostId` (e.g. controllers checking authority)
+   * see the updated value immediately.
+   */
+  applyHostTransfer: (newHostId: string) => void
 }
 
 export function mountPartyTV(root: HTMLElement, opts: MountPartyTVOpts): PartyTVHandle {
@@ -76,6 +91,7 @@ export function mountPartyTV(root: HTMLElement, opts: MountPartyTVOpts): PartyTV
   root.appendChild(wrap)
 
   let state: SyncState = makeInitialSyncState(opts.hostId)
+  let detach: (() => void) | null = null
 
   function renderBannerAndStatus(): void {
     if (!state.itemId) {
@@ -96,11 +112,30 @@ export function mountPartyTV(root: HTMLElement, opts: MountPartyTVOpts): PartyTV
     state = applyPartyCommand(state, cmd, opts.participantId)
 
     if (state.itemId && state.itemId !== prevItemId) {
-      const newSrc = directStreamUrl(opts.session, state.itemId, {
-        // Item lookup may give us a media-source id; fall back to default.
-        mediaSourceId: opts.itemLookup?.(state.itemId)?.mediaSources?.[0]?.id,
-      })
-      video.src = newSrc
+      const mediaSourceId = opts.itemLookup?.(state.itemId)?.mediaSources?.[0]?.id
+      const newSrc = opts.useHls
+        ? hlsStreamUrl(opts.session, state.itemId, { mediaSourceId })
+        : directStreamUrl(opts.session, state.itemId, { mediaSourceId })
+      // Tear down any prior hls.js instance before reattaching.
+      if (detach) {
+        try {
+          detach()
+        } catch {
+          // best-effort
+        }
+        detach = null
+      }
+      attachVideoSource(video, newSrc, opts.videoAttachOpts ?? {})
+        .then((handle) => {
+          detach = handle.detach
+        })
+        .catch(() => {
+          try {
+            video.src = newSrc
+          } catch {
+            // last-ditch
+          }
+        })
     }
 
     if (state.status !== prevStatus) {
@@ -115,11 +150,28 @@ export function mountPartyTV(root: HTMLElement, opts: MountPartyTVOpts): PartyTV
     renderBannerAndStatus()
   }
 
+  function applyHostTransfer(newHostId: string): void {
+    state = applyEvent(
+      state,
+      { type: "host-transfer", newHostId },
+      opts.participantId,
+    )
+    renderBannerAndStatus()
+  }
+
   return {
     unmount: () => {
+      if (detach) {
+        try {
+          detach()
+        } catch {
+          // best-effort
+        }
+      }
       clearChildren(root)
     },
     getState: () => state,
     applyExternalCommand,
+    applyHostTransfer,
   }
 }

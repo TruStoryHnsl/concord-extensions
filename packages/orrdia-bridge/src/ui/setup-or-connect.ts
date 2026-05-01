@@ -34,13 +34,22 @@ import { mountSetupWizard } from "./setup-wizard"
 
 export interface MountSetupOrConnectOpts {
   /**
-   * Pre-known server URL. v0.3.0 ships without persistence (matching
-   * the v0.2.0 baseline), so this is normally undefined and the
-   * dispatcher starts on the connect/probe form.
+   * Pre-known server URL. v0.3.2 wires this in from a persisted
+   * ServerConfig so the connect form is pre-filled with the URL the
+   * user used last session.
    */
   initialBaseUrl?: string
+  /** Pre-fill the connect form's username + password fields. v0.3.2. */
+  prefilledConfig?: Partial<ServerConfig>
   /** Fired when the user has a valid AuthSession. */
   onConnected: (session: AuthSession) => void
+  /**
+   * Optional companion to onConnected — fires with the ServerConfig
+   * that produced the session, so the bootstrap layer can persist it.
+   * Decoupled from onConnected so callers without persistence don't
+   * need to know about it.
+   */
+  onAuthenticated?: (config: ServerConfig, session: AuthSession) => void
   /** Injected fetch for tests. */
   fetchImpl?: FetchLike
 }
@@ -100,6 +109,7 @@ export function mountSetupOrConnect(
         }
         try {
           const session = await authenticateByName(config, { fetchImpl })
+          opts.onAuthenticated?.(config, session)
           opts.onConnected(session)
         } catch (err) {
           handle.setError(authErrorMessage(err))
@@ -124,11 +134,13 @@ export function mountSetupOrConnect(
   }
 
   // Initial dispatch: if we have a baseUrl, probe first; otherwise show
-  // the connect form (which itself does a probe-on-submit).
+  // the connect form (which itself does a probe-on-submit). v0.3.2:
+  // prefilledConfig (typically loaded from localStorage) seeds the
+  // connect form so a returning user doesn't re-type credentials.
   if (opts.initialBaseUrl) {
     renderWizard(opts.initialBaseUrl)
   } else {
-    renderConnect()
+    renderConnect(opts.prefilledConfig)
   }
 
   return {

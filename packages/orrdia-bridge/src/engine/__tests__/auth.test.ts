@@ -1,3 +1,7 @@
+// v0.2.0 baseline tests + v0.3.2 cold-reader negative cases (malformed
+// auth header inputs, expired-token surfaces, mid-stream connection drop
+// emulation).
+
 import { describe, expect, it, vi } from "vitest"
 import {
   authenticateByName,
@@ -100,5 +104,72 @@ describe("authenticateByName", () => {
       throw new Error("ENOTFOUND")
     })
     await expect(authenticateByName(baseConfig, { fetchImpl })).rejects.toBeInstanceOf(OrrdiaAuthError)
+  })
+
+  it("throws OrrdiaAuthError on 403 (token revoked / expired token surface)", async () => {
+    const fetchImpl = vi.fn(async () => mockTextResponse(403, "token expired"))
+    const err = (await authenticateByName(baseConfig, { fetchImpl }).catch((e) => e)) as OrrdiaAuthError
+    expect(err).toBeInstanceOf(OrrdiaAuthError)
+    expect(err.status).toBe(403)
+  })
+
+  it("throws OrrdiaAuthError on a stream that errors mid-body (response.json() rejects)", async () => {
+    // Simulates a connection drop after headers but before the body
+    // arrives — `res.json()` rejects with a parse / abort error.
+    const fakeRes = {
+      ok: true,
+      status: 200,
+      json: async () => {
+        throw new Error("network reset")
+      },
+    } as unknown as Response
+    const fetchImpl = vi.fn(async () => fakeRes)
+    const err = (await authenticateByName(baseConfig, { fetchImpl }).catch((e) => e)) as OrrdiaAuthError
+    expect(err).toBeInstanceOf(OrrdiaAuthError)
+  })
+
+  it("throws OrrdiaAuthError when AccessToken is empty string (not just missing)", async () => {
+    const fetchImpl = vi.fn(async () =>
+      mockJsonResponse(200, { User: { Id: "u" }, AccessToken: "", ServerId: "srv" }),
+    )
+    await expect(authenticateByName(baseConfig, { fetchImpl })).rejects.toBeInstanceOf(OrrdiaAuthError)
+  })
+})
+
+describe("buildEmbyAuthHeader — adversarial inputs", () => {
+  it("does not break when device fields contain quotation marks (jellyfin will reject; we don't sanitize)", () => {
+    // Documents the current contract: we pass through whatever the caller
+    // gives us. Jellyfin's parser is the authority on rejection. If a
+    // future hardening pass escapes these, this test must update.
+    const h = buildEmbyAuthHeader({
+      clientName: 'Concord"Bad',
+      deviceName: "Browser",
+      deviceId: "dev-1",
+      clientVersion: "0.1.0",
+    })
+    expect(h).toContain('Concord"Bad')
+  })
+
+  it("emits a token-less header when token is undefined / empty", () => {
+    const h = buildEmbyAuthHeader({
+      clientName: "Concord",
+      deviceName: "Browser",
+      deviceId: "dev-1",
+      clientVersion: "0.1.0",
+      token: "",
+    })
+    // Empty token is falsy; no Token field should appear.
+    expect(h.includes('Token=')).toBe(false)
+  })
+})
+
+describe("normalizeBaseUrl — edge cases", () => {
+  it("does not strip mid-string slashes (only trailing ones)", () => {
+    expect(normalizeBaseUrl("https://o.example/path/")).toBe("https://o.example/path")
+    expect(normalizeBaseUrl("https://o.example/path/sub/")).toBe("https://o.example/path/sub")
+  })
+
+  it("returns empty string unchanged (caller error, not normalize's job to validate)", () => {
+    expect(normalizeBaseUrl("")).toBe("")
   })
 })

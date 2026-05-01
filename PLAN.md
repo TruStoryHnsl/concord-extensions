@@ -108,18 +108,18 @@ The extension SDK (`concord/client/src/extensions/sdk.ts`) stays in the main con
 - [x] Remove `concord/ext/worldview/` from main concord repo
 
 ### Phase 1 — Runtime Loader
-**Status**: planned
+**Status**: complete (shipped 2026-04-30 as concord PR #39 / INS-066 W1-W8)
 **Repo**: main `concord` repo
 
 The Concord server learns to install, cache, and serve extension bundles.
 
-- [ ] DB migration: `extensions` table (id, version, pricing, enabled, cached_at, remote_url)
-- [ ] API: `POST /api/extensions/install`, `DELETE /api/extensions/{id}`, `GET /api/extensions`
-- [ ] File system: unpack `.zip` to `data/extensions/{id}/`, serve at `/ext/{id}/`
-- [ ] `BrowserSurface.tsx`: dev-URL bypass (env flag), route `/ext/{id}/` URLs
+- [x] DB migration: `extensions` table (id, version, pricing, enabled, cached_at, remote_url) — shipped in concord PR #39 INS-066 W1.
+- [x] API: `POST /api/extensions/install`, `DELETE /api/extensions/{id}`, `GET /api/extensions` — shipped in concord PR #39 INS-066 W2.
+- [x] File system: unpack `.zip` to `data/extensions/{id}/`, serve at `/ext/{id}/` — shipped in concord PR #39 INS-066 W3.
+- [x] `BrowserSurface.tsx`: dev-URL bypass (env flag), route `/ext/{id}/` URLs — shipped in concord PR #39 INS-066 W4.
 
 ### Phase 2 — Update + Auth
-**Status**: planned
+**Status**: planned (concord PR #39 / INS-066 W1-W8 shipped Phase 1 only; auth + version-check not yet started)
 **Repo**: main `concord` repo
 
 - [ ] Background version check on launch for `free` / `one_time` extensions
@@ -127,7 +127,7 @@ The Concord server learns to install, cache, and serve extension bundles.
 - [ ] "Subscription inactive" blocking surface on failed auth
 
 ### Phase 3 — Marketplace UI
-**Status**: planned
+**Status**: planned (concord PR #39 / INS-066 W1-W8 shipped Phase 1 only; marketplace browse/install UI not yet started)
 **Repo**: main `concord` repo
 
 - [ ] Browse official extensions from the catalog
@@ -199,6 +199,13 @@ INS-036 already implements the session/mode mechanics. This phase documents the 
   **Acceptance**: install v0.3.0 against a brand-new jellyfin (StartupWizardCompleted=false). User sees the wizard. Walks through admin creation. Bridge auto-logs in. Connect form is bypassed. End state: same as v0.2.0's "connected" with no prior out-of-band setup. Bump to v0.3.0; regen bundle; update catalog.json.
 
   _v0.3.0 (2026-04-30): Shipped. New `src/engine/jellyfin-setup.ts` typed client (probe `/System/Info/Public`; `/Startup/Configuration`, `/Startup/User`, `/Startup/RemoteAccess`, `/Startup/Complete`; authed `/Library/VirtualFolders`) with `OrrdiaSetupError` carrying status + body for inline display. New `src/ui/setup-wizard.ts` pure FSM (`createInitialState`, `reduceWizard`, `effectFor`) split from the DOM driver (`mountSetupWizard`) so the state machine is unit-testable without jsdom — every transition, every error-with-fields-preserved-on-retry, every out-of-band-completion handoff is exercised in `setup-wizard.test.ts`. `mountSetupOrConnect` dispatcher probes first then renders wizard or connect form; `mountServerConfig` gained an `urlOnly` mode so the user can probe a brand-new server without inventing creds. Bundle 11657 bytes → `com.concord.orrdia-bridge@0.3.0.zip`. Tests: 66 → 110 (+15 jellyfin-setup, +22 setup-wizard FSM+driver, +7 setup-or-connect dispatcher). Spec doc §3.3 added._
+
+  _v0.3.2 (2026-04-30): four follow-ups landed in one cycle._
+  _**Host-transfer wiring**: `bridge.onHostTransfer` (delivered via `concord:host_transfer`, INS-036 W4) is now wired in `src/index.ts` to update bootstrap `state.hostId` and route a `host-transfer` SyncEvent into any active Display surface and into `mountPartyTV`'s new `applyHostTransfer` handle. Tests cover incumbent-hands-off, observer-receives-transfer, transfer-to-stranger, transfer-back, and double-transfer race._
+  _**HLS playback via hls.js**: new `src/ui/video-attach.ts` is a 4-branch decision tree (HLS-or-not × native-or-MediaSource) with a `hlsLoader` injection seam. `hls.js@^1.5.13` is now a runtime dep but lazy-loaded via `import("hls.js")` so non-HLS sessions never pay the 525KB chunk cost. Display + Party TV both call `attachVideoSource(video, src)` instead of `video.src=` directly. `useHls?: boolean` opts into the HLS endpoint. Bundle grew from 11704 → 170881 bytes because the .zip ships the hls.js code-split chunk for runtime dynamic-import; gzipped over the wire that's ~164KB only when an HLS item plays._
+  _**ServerConfig persistence**: new `src/session/persistence.ts` uses `localStorage` keyed `concord-ext:<extensionId>:serverConfig`. Bootstrap tries silent re-auth via the persisted creds; on success the connect form is bypassed entirely. `extension:permission_denied` clears persisted creds. localStorage unavailability (private mode, sandboxed iframe with no storage) gracefully degrades to v0.3.1 behavior. Schema-version-tagged record with corruption-clearing on parse failure. 12 tests covering round-trip, schema mismatch, scoping by extensionId, hostile-storage failure modes, and adversarial-string password preservation._
+  _**Cold-reader test pass (INS-009-FUP)**: 26 new negative-case tests across `engine/auth.test.ts`, `engine/client.test.ts`, `session/sync.test.ts`, `ui/display.test.ts`, `ui/party-tv.test.ts`, `ui/party-controller.test.ts`, plus the new `ui/video-attach.test.ts` suite. Found and fixed: (a) `applyEvent` and `applyPartyCommand` returning `undefined` on unknown discriminants — both reducers gained defensive `default: return state` branches; (b) `party-cmd-queue-add` was non-idempotent (documented as such in v0.2.0), causing every optimistic-local + remote-echo round-trip to land twice — fixed via dedup-on-(addedBy, atMs, itemId) tuple per spec §7.4 preference. Tests: 110 → 170 (+12 persistence, +9 video-attach, +2 host-transfer party-tv, +5 display HLS/negative, +9 sync host-transfer/dedup/no-op, +13 auth/client adversarial, +5 party-controller dedup/malformed, +5 PLAN.md hygiene)._
+  _Bundle 170881 bytes → `com.concord.orrdia-bridge@0.3.2.zip` (catalog.json updated). Tests: 110 → 170 all green._
   _Tests authored in same session as code (project rule violation per CLAUDE.md "WRITTEN IN BLOOD"). Cold-reader test pass should add Playwright-driven acceptance against a real fresh jellyfin instance to confirm the user-visible flow matches the unit-level assertions (tracked as INS-009-W9-FUP in inbox)._
 
 ### Phase 7 — SDK Extraction

@@ -9,7 +9,7 @@
  * concord state events.
  */
 
-import { directStreamUrl } from "../engine/stream-url"
+import { directStreamUrl, hlsStreamUrl } from "../engine/stream-url"
 import { AuthSession, MediaItem } from "../engine/types"
 import {
   applyEvent,
@@ -18,6 +18,7 @@ import {
   SyncState,
 } from "../session/sync"
 import { clearChildren } from "./dom-util"
+import { attachVideoSource, AttachVideoSourceOpts } from "./video-attach"
 
 export type DisplayRole = "host" | "observer"
 
@@ -30,6 +31,15 @@ export interface MountDisplayOpts {
   onBack?: () => void
   /** Hook fired after every applyEvent — mount site routes to network in Phase 1. */
   onSyncEvent?: (ev: SyncEvent, state: SyncState) => void
+  /**
+   * If true, request the HLS stream URL instead of direct. Useful when
+   * the source container/codec needs server-side transcoding. Default is
+   * false (direct stream) — direct is preferred when the browser can
+   * decode the file as-is, since transcoding costs server CPU.
+   */
+  useHls?: boolean
+  /** Test injection seam for the hls.js attach pipeline. */
+  videoAttachOpts?: AttachVideoSourceOpts
 }
 
 export interface DisplayHandle {
@@ -75,10 +85,31 @@ export function mountDisplay(root: HTMLElement, opts: MountDisplayOpts): Display
   video.style.width = "100%"
   video.style.background = "#000"
   video.preload = "metadata"
-  const src = directStreamUrl(opts.session, opts.item.id, {
-    mediaSourceId: opts.item.mediaSources?.[0]?.id,
-  })
-  video.src = src
+  const src = opts.useHls
+    ? hlsStreamUrl(opts.session, opts.item.id, {
+        mediaSourceId: opts.item.mediaSources?.[0]?.id,
+      })
+    : directStreamUrl(opts.session, opts.item.id, {
+        mediaSourceId: opts.item.mediaSources?.[0]?.id,
+      })
+  // attachVideoSource picks native vs hls.js. Promise resolves on next
+  // microtask in the non-HLS path, or when hls.js loads in the HLS path.
+  // We don't await — the <video> mounts and the source attaches when ready.
+  let detach: (() => void) | null = null
+  attachVideoSource(video, src, opts.videoAttachOpts ?? {})
+    .then((handle) => {
+      detach = handle.detach
+    })
+    .catch(() => {
+      // Fallback: plain <video src=> assignment if attachVideoSource itself
+      // rejects (e.g. dynamic import broken). Keeps the surface usable for
+      // direct streams even if the HLS lazy-load chain is busted.
+      try {
+        video.src = src
+      } catch {
+        // last-ditch best-effort.
+      }
+    })
   wrap.appendChild(video)
 
   const status = document.createElement("div")
@@ -117,6 +148,13 @@ export function mountDisplay(root: HTMLElement, opts: MountDisplayOpts): Display
 
   return {
     unmount: () => {
+      if (detach) {
+        try {
+          detach()
+        } catch {
+          // best-effort
+        }
+      }
       clearChildren(root)
     },
     getState: () => state,
