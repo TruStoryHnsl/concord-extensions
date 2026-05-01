@@ -26,15 +26,21 @@
  * surfaces share the same window (dev) but is a no-op across devices.
  */
 
-import { AuthSession, MediaItem } from "./engine/types"
+import { authenticateByName } from "./engine/auth"
+import { AuthSession, MediaItem, ServerConfig } from "./engine/types"
 import {
   mapSdkModeToUxMode,
   pickViewVariant,
   UXMode,
   ViewVariant,
 } from "./session/mode-adapter"
+import {
+  clearServerConfig,
+  loadServerConfig,
+  saveServerConfig,
+} from "./session/persistence"
 import { PartyCommand } from "./session/sync"
-import { mountDisplay } from "./ui/display"
+import { DisplayHandle, mountDisplay } from "./ui/display"
 import { clearChildren } from "./ui/dom-util"
 import { mountHybridSplit } from "./ui/hybrid-split"
 import { mountLibraryBrowser } from "./ui/library-browser"
@@ -42,7 +48,7 @@ import {
   mountPartyController,
   PARTY_COMMAND_EVENT_TYPE,
 } from "./ui/party-controller"
-import { mountPartyTV } from "./ui/party-tv"
+import { mountPartyTV, PartyTVHandle } from "./ui/party-tv"
 import { mountServerConfig } from "./ui/server-config"
 import { mountSetupOrConnect } from "./ui/setup-or-connect"
 import { ShellBridge, getDefaultBridge } from "./shell/bridge"
@@ -118,6 +124,13 @@ interface BootstrapState {
   participantId: string
   hostId: string
   bridge: ShellBridge
+  /** Live PartyTV handle if currently mounted; null otherwise. Set by
+   *  renderStage when it mounts the Party TV surface so the bootstrap
+   *  host-transfer listener can route updates into the live surface
+   *  without re-rendering the whole stage. */
+  activePartyTV: PartyTVHandle | null
+  /** Live Display handle if currently mounted; null otherwise. */
+  activeDisplay: DisplayHandle | null
 }
 
 export async function bootstrap(
@@ -136,25 +149,90 @@ export async function bootstrap(
     participantId: init.participantId,
     hostId: init.participantId, // launcher = host until concord:host_transfer arrives
     bridge,
+    activePartyTV: null,
+    activeDisplay: null,
   }
 
-  renderStage(root, state)
+  // Listen for host-transfer events from the shell (concord:host_transfer
+  // forwarded by the SDK / INS-036 W4). Update bootstrap state and notify
+  // any active surface so it can flip its internal host tracking.
+  bridge.onHostTransfer((p) => {
+    state.hostId = p.newHostId
+    if (state.activePartyTV) {
+      state.activePartyTV.applyHostTransfer(p.newHostId)
+    }
+    if (state.activeDisplay) {
+      state.activeDisplay.applyRemote({ type: "host-transfer", newHostId: p.newHostId })
+    }
+  })
+
+  // Listen for permission_denied — the shell tells us when an authed
+  // verb is rejected. If our persisted creds are stale, the most likely
+  // signal is a downstream auth failure; we also clear on the explicit
+  // permission_denied path so a future re-mount lands on a fresh form.
+  bridge.onPermissionDenied(() => {
+    clearServerConfig()
+  })
+
+  // v0.3.2: try persisted ServerConfig before mounting the connect form.
+  // If a record exists with username + password, attempt silent auth;
+  // success means the user skips the connect form on every remount.
+  // Failure (revoked password, server URL changed) falls through to the
+  // dispatcher pre-filled with whatever we did have.
+  const persisted = loadServerConfig()
+  if (persisted && persisted.username && persisted.password) {
+    try {
+      const session = await authenticateByName(persisted)
+      state.session = session
+      // Re-save to refresh savedAtMs — also lets a future expiry policy
+      // distinguish active vs stale records.
+      saveServerConfig(persisted)
+    } catch {
+      // Silent-auth failed: the saved creds are stale. Clear them so we
+      // don't keep retrying the same dead config on every mount, and
+      // fall through to the dispatcher (with URL prefill if we have one).
+      clearServerConfig()
+    }
+  }
+
+  renderStage(root, state, persisted ?? undefined)
 }
 
-function renderStage(root: HTMLElement, state: BootstrapState): void {
+function persistOnAuth(config: ServerConfig): void {
+  // Strip password? No — the user just typed it; persist as-is so
+  // silent re-auth works on next mount. localStorage is per-origin so a
+  // hostile peer can't read it without already controlling the page.
+  saveServerConfig(config)
+}
+
+function renderStage(
+  root: HTMLElement,
+  state: BootstrapState,
+  prefillHint?: ServerConfig,
+): void {
   clearChildren(root)
+  // Stage transitions invalidate live surface handles. The new mount
+  // path below overwrites these if it mounts a host-transfer-aware
+  // surface; otherwise they stay null.
+  state.activePartyTV = null
+  state.activeDisplay = null
 
   // Server-config / auth gate. v0.3.0 inserts mountSetupOrConnect ahead
   // of the bare mountServerConfig: it probes /System/Info/Public and
   // either renders the setup wizard (StartupWizardCompleted=false) or
-  // the connect form (=true). The previous v0.2.0 behavior — assuming
-  // an admin already exists — was a UX dead-end against fresh servers.
-  // Until session persistence ships, every mount re-auths.
+  // the connect form (=true). v0.3.2 adds persistence — if silent
+  // re-auth succeeded in bootstrap, state.session is non-null here and
+  // we skip the form entirely. If it failed (or no record existed), the
+  // dispatcher gets prefillHint so the user only re-types what changed.
   if (!state.session) {
     mountSetupOrConnect(root, {
+      prefilledConfig: prefillHint,
       onConnected: (session) => {
         state.session = session
         renderStage(root, state)
+      },
+      onAuthenticated: (config) => {
+        persistOnAuth(config)
       },
     })
     return
@@ -203,6 +281,7 @@ function renderStage(root: HTMLElement, state: BootstrapState): void {
       // shows the bare itemId. A follow-up could bake item metadata into
       // the command payload so the TV banner reads "Movie A" instead.
     })
+    state.activePartyTV = tv
     state.bridge.onStateEvent((p) => {
       if (p.eventType !== PARTY_COMMAND_EVENT_TYPE) return
       const cmd = p.content as unknown as PartyCommand
@@ -228,7 +307,7 @@ function renderStage(root: HTMLElement, state: BootstrapState): void {
     return
   }
 
-  mountDisplay(root, {
+  const display = mountDisplay(root, {
     session: state.session,
     item: state.selectedItem,
     role: state.participantId === state.hostId ? "host" : "observer",
@@ -239,6 +318,7 @@ function renderStage(root: HTMLElement, state: BootstrapState): void {
       renderStage(root, state)
     },
   })
+  state.activeDisplay = display
 }
 
 if (typeof window !== "undefined" && typeof document !== "undefined") {

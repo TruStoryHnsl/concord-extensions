@@ -1,5 +1,8 @@
-// NOTE: v0.2.0 party-cmd reducer tests authored same-session as feature —
-// see PLAN.md INS-009 entry; cold-reader pass needed before declaring production-ready.
+// v0.2.0 baseline tests authored same-session as the original feature.
+// v0.3.2 added cold-reader negative cases: host-transfer edge cases
+// (nonexistent peer, transfer back, double-race), malformed SyncEvent
+// payloads (graceful no-op contract), and queue-add dedup-on-
+// (addedBy, atMs) covering the optimistic-local + remote-echo race.
 
 import { describe, expect, it } from "vitest"
 import {
@@ -77,6 +80,45 @@ describe("applyEvent", () => {
     expect(s.itemId).toBe(base.itemId)
   })
 
+  it("host-transfer to a never-seen-before peer is permitted (reducer does not gatekeep membership)", () => {
+    // This tests the contract: the reducer trusts the caller. Membership
+    // checks are the upstream's job (the shell vetted the host_transfer
+    // before forwarding it). A bogus newHostId reaches state.hostId; if
+    // that's wrong, the bug is shell-side, not reducer-side.
+    const s = applyEvent(base, { type: "host-transfer", newHostId: "@stranger-from-nowhere" }, "@me")
+    expect(s.hostId).toBe("@stranger-from-nowhere")
+  })
+
+  it("host-transfer back to the original host restores the original hostId", () => {
+    const s1 = applyEvent(base, { type: "host-transfer", newHostId: "@bob" }, "@me")
+    const s2 = applyEvent(s1, { type: "host-transfer", newHostId: base.hostId }, "@me")
+    expect(s2.hostId).toBe(base.hostId)
+  })
+
+  it("double host-transfer in rapid succession — last one wins", () => {
+    let s = applyEvent(base, { type: "host-transfer", newHostId: "@bob" }, "@me")
+    s = applyEvent(s, { type: "host-transfer", newHostId: "@carol" }, "@me")
+    expect(s.hostId).toBe("@carol")
+  })
+
+  it("malformed SyncEvent (unknown type) returns state unchanged (graceful no-op)", () => {
+    const s = applyEvent(
+      base,
+      { type: "garbage-event" } as unknown as Parameters<typeof applyEvent>[1],
+      "@me",
+    )
+    expect(s).toBe(base)
+  })
+
+  it("malformed SyncEvent (null) returns state unchanged", () => {
+    const s = applyEvent(
+      base,
+      null as unknown as Parameters<typeof applyEvent>[1],
+      "@me",
+    )
+    expect(s).toBe(base)
+  })
+
   it("is idempotent — applying same event twice yields same state", () => {
     const ev = { type: "play" as const, positionMs: 800, atMs: 100 }
     const s1 = applyEvent(base, ev, "@me")
@@ -128,8 +170,12 @@ describe("applyPartyCommand (v0.2.0)", () => {
     expect(s.queueCursor).toBe(-1) // queue-add does NOT auto-advance cursor
   })
 
-  it("queue-add is intentionally NOT idempotent — applying twice creates two entries", () => {
-    // Spec note: dedup happens at the network/causality layer, not here.
+  it("queue-add dedups on (addedBy, addedAtMs, itemId) — optimistic+echo race yields one entry (v0.3.2)", () => {
+    // v0.3.2 cold-reader pass changed the contract from "intentionally
+    // not idempotent" to "deduped on the (addedBy, atMs, itemId) tuple"
+    // because the original behavior was the source of double-queue bugs
+    // when a controller's optimistic local apply got echoed back via
+    // concord:state_event with the same payload.
     let s = applyPartyCommand(
       base,
       { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@a", atMs: 1 },
@@ -138,6 +184,34 @@ describe("applyPartyCommand (v0.2.0)", () => {
     s = applyPartyCommand(
       s,
       { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@a", atMs: 1 },
+      "@me",
+    )
+    expect(s.queue).toHaveLength(1)
+  })
+
+  it("queue-add by different addedBy with same atMs lands twice (no dedup across users)", () => {
+    let s = applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@alice", atMs: 100 },
+      "@me",
+    )
+    s = applyPartyCommand(
+      s,
+      { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@bob", atMs: 100 },
+      "@me",
+    )
+    expect(s.queue).toHaveLength(2)
+  })
+
+  it("queue-add same user same item different atMs lands twice (legitimate re-queue)", () => {
+    let s = applyPartyCommand(
+      base,
+      { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@alice", atMs: 100 },
+      "@me",
+    )
+    s = applyPartyCommand(
+      s,
+      { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@alice", atMs: 200 },
       "@me",
     )
     expect(s.queue).toHaveLength(2)

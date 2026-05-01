@@ -1,4 +1,6 @@
-// NOTE: tests authored same-session as feature — see PLAN.md INS-009 entry; cold-reader pass needed before declaring production-ready.
+// v0.2.0 baseline tests authored same-session as the original feature; v0.3.2
+// cold-reader pass added negative cases (host-transfer, malformed payloads,
+// dedup on optimistic+echo race).
 
 import { describe, expect, it } from "vitest"
 import { mountPartyTV } from "../party-tv"
@@ -58,6 +60,45 @@ describe("mountPartyTV (v0.2.0)", () => {
 
     const banner = root.querySelector(".orrdia-party-tv-banner")
     expect(banner?.textContent).toContain("Movie A")
+    tv.unmount()
+  })
+
+  it("applyHostTransfer flips state.hostId without disturbing queue or item", () => {
+    const root = document.createElement("div")
+    const tv = mountPartyTV(root, {
+      session,
+      participantId: "@me",
+      hostId: "@old-host",
+    })
+    tv.applyExternalCommand({
+      type: "party-cmd-queue-add",
+      itemId: "it-A",
+      addedBy: "@alice",
+      atMs: 1,
+    })
+    expect(tv.getState().hostId).toBe("@old-host")
+    expect(tv.getState().queue).toHaveLength(1)
+
+    tv.applyHostTransfer("@new-host")
+    expect(tv.getState().hostId).toBe("@new-host")
+    // Queue, item, status, position all unchanged
+    expect(tv.getState().queue).toHaveLength(1)
+    expect(tv.getState().itemId).toBeNull()
+    tv.unmount()
+  })
+
+  it("non-host TV applies host-transfer when relayed by the bootstrap subscriber", () => {
+    // Simulates index.ts's bridge.onHostTransfer flowing into a Party TV
+    // that was mounted with the local participant as a non-host.
+    const root = document.createElement("div")
+    const tv = mountPartyTV(root, {
+      session,
+      participantId: "@observer",
+      hostId: "@incumbent",
+    })
+    expect(tv.getState().hostId).toBe("@incumbent")
+    tv.applyHostTransfer("@new-host")
+    expect(tv.getState().hostId).toBe("@new-host")
     tv.unmount()
   })
 

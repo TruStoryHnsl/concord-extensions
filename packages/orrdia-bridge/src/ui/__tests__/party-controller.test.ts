@@ -1,4 +1,7 @@
-// NOTE: tests authored same-session as feature — see PLAN.md INS-009 entry; cold-reader pass needed before declaring production-ready.
+// v0.2.0 baseline + v0.3.2 cold-reader negative cases:
+//  - queue-add deduplication on optimistic-local + remote-echo race
+//  - malformed PartyCommand state_events (graceful no-op)
+//  - state_events with the right eventType but wrong content shape
 
 import { afterEach, describe, expect, it, vi } from "vitest"
 import { mountPartyController, PARTY_COMMAND_EVENT_TYPE } from "../party-controller"
@@ -182,6 +185,110 @@ describe("mountPartyController (v0.2.0)", () => {
       eventType: "m.room.message",
       content: { body: "hello" },
     })
+    expect(handle.getState().itemId).toBeNull()
+  })
+
+  it("queue-add optimistic-local + remote-echo with same (addedBy, atMs) lands ONCE in state (v0.3.2 dedup)", () => {
+    // Reproduce the race that the v0.2.0 controller documented as
+    // "accepts double-entry on first round-trip". v0.3.2 added dedup in
+    // applyPartyCommand on (addedBy, addedAtMs, itemId) so the optimistic
+    // local apply + the bridge.onStateEvent echo (same payload) collapse
+    // to a single queue entry. This is the test that locks that contract
+    // in.
+    const root = document.createElement("div")
+    const bridge = makeFakeBridge()
+    const handle = mountPartyController(root, {
+      session,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      bridge: bridge as any,
+      participantId: "@me",
+      now: () => 5000,
+    })
+    unmounts.push(handle.unmount)
+
+    // Step 1: simulate the controller emitting an optimistic queue-add
+    // by firing the same payload through fireStateEvent (the controller
+    // already applies optimistically inside sendCommand). We simulate the
+    // round-trip by firing a second copy of the *exact same payload* to
+    // model the shell's echo back to the same iframe.
+    const payload = {
+      type: "party-cmd-queue-add",
+      itemId: "it-1",
+      addedBy: "@me",
+      atMs: 5000,
+    }
+    // Optimistic apply
+    bridge.fireStateEvent({ eventType: PARTY_COMMAND_EVENT_TYPE, content: payload })
+    // Echo (same payload, same atMs, same addedBy)
+    bridge.fireStateEvent({ eventType: PARTY_COMMAND_EVENT_TYPE, content: payload })
+
+    expect(handle.getState().queue).toHaveLength(1)
+  })
+
+  it("queue-add from two different users with same atMs lands twice (no cross-user dedup)", () => {
+    const root = document.createElement("div")
+    const bridge = makeFakeBridge()
+    const handle = mountPartyController(root, {
+      session,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      bridge: bridge as any,
+      participantId: "@me",
+      now: () => 1,
+    })
+    unmounts.push(handle.unmount)
+
+    bridge.fireStateEvent({
+      eventType: PARTY_COMMAND_EVENT_TYPE,
+      content: { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@alice", atMs: 1000 },
+    })
+    bridge.fireStateEvent({
+      eventType: PARTY_COMMAND_EVENT_TYPE,
+      content: { type: "party-cmd-queue-add", itemId: "it-1", addedBy: "@bob", atMs: 1000 },
+    })
+    expect(handle.getState().queue).toHaveLength(2)
+  })
+
+  it("malformed state_event content (no `type` field) is silently ignored, no exception", () => {
+    const root = document.createElement("div")
+    const bridge = makeFakeBridge()
+    const handle = mountPartyController(root, {
+      session,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      bridge: bridge as any,
+      participantId: "@me",
+      now: () => 1,
+    })
+    unmounts.push(handle.unmount)
+
+    expect(() => {
+      bridge.fireStateEvent({
+        eventType: PARTY_COMMAND_EVENT_TYPE,
+        content: { not: "a-command" },
+      })
+    }).not.toThrow()
+    expect(handle.getState().queue).toHaveLength(0)
+  })
+
+  it("state_event with PARTY_COMMAND_EVENT_TYPE but unknown command type is graceful no-op", () => {
+    const root = document.createElement("div")
+    const bridge = makeFakeBridge()
+    const handle = mountPartyController(root, {
+      session,
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      bridge: bridge as any,
+      participantId: "@me",
+      now: () => 1,
+    })
+    unmounts.push(handle.unmount)
+
+    expect(() => {
+      bridge.fireStateEvent({
+        eventType: PARTY_COMMAND_EVENT_TYPE,
+        content: { type: "party-cmd-future-not-yet-shipped", atMs: 1 },
+      })
+    }).not.toThrow()
+    // Queue + state untouched.
+    expect(handle.getState().queue).toHaveLength(0)
     expect(handle.getState().itemId).toBeNull()
   })
 })
