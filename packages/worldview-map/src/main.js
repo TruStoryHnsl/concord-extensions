@@ -135,6 +135,8 @@
   WV.HealthPanel.init();
   WV.BudgetGuard.init();
   WV.CctvPip.init();
+  WV.SearchBar.init();
+  WV.PlaceCard.init(viewer);
 
   // ── 2D / 3D SCENE TOGGLE ─────────────────────────────────
   var starCanvas = document.querySelector('#cesiumContainer canvas[style*="z-index:0"]');
