@@ -117,6 +117,74 @@ The session is held in-memory by the running extension. v0.1.0 does not
 persist credentials between launches; re-auth on every mount. Phase 1's
 install pipeline will add a per-user secret store; spec doesn't depend on it.
 
+### 3.3 First-run setup wizard (v0.3.0+)
+
+A fresh orrdia install has `StartupWizardCompleted: false` and no
+admin account exists yet. v0.2.0 dead-ended at "enter username/password
+for an account that doesn't exist." v0.3.0 detects this state and
+walks the user through inline.
+
+**Detection probe** — at mount, before rendering any auth UI:
+
+```
+GET {baseUrl}/System/Info/Public      (no auth, always reachable)
+```
+
+The response includes `StartupWizardCompleted: boolean`. If `true` →
+render the existing connect form (§4). If `false` → render the wizard.
+If the probe itself fails → render the URL-only prompt and let the
+user fix the address before re-probing.
+
+**Wizard endpoint chain** (each unauthenticated WHILE
+`StartupWizardCompleted=false`):
+
+| Step | Method + Path | Body |
+|------|---------------|------|
+| Configuration | `POST /Startup/Configuration` | `{UICulture, MetadataCountryCode, PreferredMetadataLanguage}` |
+| Admin user | `POST /Startup/User` | `{Name, Password}` |
+| Library (optional, post-auth) | `POST /Library/VirtualFolders?name=&collectionType=&refreshLibrary=true` | `{LibraryOptions: {PathInfos: [{Path}]}}` |
+| Remote access | `POST /Startup/RemoteAccess` | `{EnableRemoteAccess, EnableAutomaticPortMapping: false}` |
+| Finalize | `POST /Startup/Complete` | `{}` |
+
+After `/Startup/Complete` the server flips `StartupWizardCompleted` to
+true; subsequent calls to `/Startup/*` reject without an AccessToken.
+The wizard immediately follows with `/Users/AuthenticateByName` using
+the admin credentials it just captured, then optionally creates the
+quick-start library (which requires auth), and hands the AuthSession
+to the host like the connect form does.
+
+**State machine** — pure transitions, unit-testable without a browser.
+Each state owns one render function. Error states preserve user-entered
+values across retries.
+
+```
+detecting --probeOk(completed=true)--> connected (handoff to connect form)
+detecting --probeOk(completed=false)--> wizardWelcome
+detecting --probeError--> serverPrompt
+serverPrompt --URL_SUBMIT--> detecting
+wizardWelcome --WELCOME_CONTINUE (Configuration POST)--> wizardAdmin
+wizardAdmin --ADMIN_SUBMIT (User POST)--> wizardLibrary
+wizardLibrary --LIBRARY_SUBMIT or LIBRARY_SKIP--> wizardRemote
+wizardRemote --REMOTE_SUBMIT (RemoteAccess + Complete + Auth + VirtualFolder)--> wizardFinalizing
+wizardFinalizing --FINALIZE_DONE--> connected (with AuthSession)
+any wizard step --STEP_ERROR--> wizardError(reason, returnTo)
+wizardError --RETRY--> returnTo (with all entered fields preserved)
+wizardError --RESET_TO_PROMPT--> serverPrompt
+```
+
+**Failure modes**:
+
+| Symptom | Handling |
+|---------|----------|
+| `/Startup/User` 400 (admin name taken, password too weak) | Render server's error body inline + HTTP code; stay on wizardAdmin via Retry; preserve typed fields. |
+| Network failure on probe or step POST | Distinguish from auth failure via `OrrdiaSetupError.status === 0`. Offer Retry or Change-server-URL. |
+| Out-of-band wizard completion mid-flow | The probe-resilient design re-checks on entry. If probe flips to `completed=true` mid-wizard the FSM jumps to the connect form. |
+| Library creation fails post-auth | Soft-warn via console; complete handoff anyway. The user has a working server; library can be added later. |
+
+**Out-of-scope for v0.3.0**: library management UI beyond the single
+quick-start library, advanced metadata config, multi-user setup beyond
+the initial admin, branding customization. Those land later if needed.
+
 ---
 
 ## 4. Authentication flow

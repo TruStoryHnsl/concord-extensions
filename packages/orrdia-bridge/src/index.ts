@@ -26,8 +26,7 @@
  * surfaces share the same window (dev) but is a no-op across devices.
  */
 
-import { authenticateByName } from "./engine/auth"
-import { AuthSession, MediaItem, ServerConfig } from "./engine/types"
+import { AuthSession, MediaItem } from "./engine/types"
 import {
   mapSdkModeToUxMode,
   pickViewVariant,
@@ -45,6 +44,7 @@ import {
 } from "./ui/party-controller"
 import { mountPartyTV } from "./ui/party-tv"
 import { mountServerConfig } from "./ui/server-config"
+import { mountSetupOrConnect } from "./ui/setup-or-connect"
 import { ShellBridge, getDefaultBridge } from "./shell/bridge"
 
 export * from "./engine/types"
@@ -75,6 +75,38 @@ export {
 } from "./ui/party-controller"
 export { mountPartyTV } from "./ui/party-tv"
 export { mountServerConfig } from "./ui/server-config"
+export { mountSetupOrConnect } from "./ui/setup-or-connect"
+export {
+  createInitialState as createWizardInitialState,
+  effectFor as wizardEffectFor,
+  mountSetupWizard,
+  reduceWizard,
+} from "./ui/setup-wizard"
+export type {
+  AdminFields as WizardAdminFields,
+  LibraryFields as WizardLibraryFields,
+  RemoteFields as WizardRemoteFields,
+  WizardEffect,
+  WizardEvent,
+  WizardState,
+  WizardStateName,
+} from "./ui/setup-wizard"
+export {
+  OrrdiaSetupError,
+  probeStartupState,
+  submitStartupComplete,
+  submitStartupConfiguration,
+  submitStartupRemoteAccess,
+  submitStartupUser,
+  submitVirtualFolder,
+} from "./engine/jellyfin-setup"
+export type {
+  StartupConfigurationPayload,
+  StartupProbe,
+  StartupRemoteAccessPayload,
+  StartupUserPayload,
+  VirtualFolderPayload,
+} from "./engine/jellyfin-setup"
 
 const SUPPORTED_MODES: readonly UXMode[] = ["display", "party", "hybrid"]
 
@@ -112,14 +144,15 @@ export async function bootstrap(
 function renderStage(root: HTMLElement, state: BootstrapState): void {
   clearChildren(root)
 
-  // Server-config / auth gate. The Party TV surface in v0.2.0 still
-  // needs a session because the controller emits opaque itemIds that the
-  // TV resolves via directStreamUrl(session, ...). Until session
-  // persistence ships, every mount re-auths.
+  // Server-config / auth gate. v0.3.0 inserts mountSetupOrConnect ahead
+  // of the bare mountServerConfig: it probes /System/Info/Public and
+  // either renders the setup wizard (StartupWizardCompleted=false) or
+  // the connect form (=true). The previous v0.2.0 behavior — assuming
+  // an admin already exists — was a UX dead-end against fresh servers.
+  // Until session persistence ships, every mount re-auths.
   if (!state.session) {
-    mountServerConfig(root, {
-      onConnect: async (config: ServerConfig) => {
-        const session = await authenticateByName(config)
+    mountSetupOrConnect(root, {
+      onConnected: (session) => {
         state.session = session
         renderStage(root, state)
       },

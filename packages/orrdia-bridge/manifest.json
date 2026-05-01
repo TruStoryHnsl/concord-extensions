@@ -1,6 +1,6 @@
 {
   "id": "com.concord.orrdia-bridge",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "name": "Orrdia Bridge",
   "description": "Bridge to an orrdia/Jellyfin server. Browse the shared library and stream movies, shows, and music with synchronized playback for everyone in the room.",
   "pricing": "free",

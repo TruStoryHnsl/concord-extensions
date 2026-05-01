@@ -14,6 +14,16 @@ import { clearChildren } from "./dom-util"
 export interface MountServerConfigOpts {
   initial?: Partial<ServerConfig>
   onConnect: (config: ServerConfig) => void | Promise<void>
+  /**
+   * When true, the form only requires a non-empty Server URL on submit
+   * (username/password may be blank). The host is expected to call the
+   * setup-wizard / probe layer with the URL alone. Default false keeps
+   * v0.2.0 behavior: URL+username both required.
+   *
+   * Used by mountSetupOrConnect (INS-009 W9) to let users probe a fresh
+   * server without inventing credentials they don't yet have.
+   */
+  urlOnly?: boolean
 }
 
 export function mountServerConfig(
@@ -55,7 +65,13 @@ export function mountServerConfig(
       username: username.input.value.trim(),
       password: password.input.value,
     }
-    if (!config.baseUrl || !config.username) {
+    if (!config.baseUrl) {
+      errBox.textContent = opts.urlOnly
+        ? "Server URL is required."
+        : "Base URL and username are required."
+      return
+    }
+    if (!opts.urlOnly && !config.username) {
       errBox.textContent = "Base URL and username are required."
       return
     }
