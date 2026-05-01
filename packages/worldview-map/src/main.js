@@ -87,6 +87,13 @@
   };
   if (_hasCesiumToken) {
     _viewerOpts.terrain = Cesium.Terrain.fromWorldTerrain();
+  } else {
+    // Cesium's built-in default Ion token (baked into Cesium.js) still 401s
+    // when the user hasn't set their own. Suppress the default base imagery
+    // layer so we don't get console errors. The Carto dark-labels layer
+    // below provides place-name imagery and Photoreal 3D Tiles (when the
+    // Google key is set) provides the surface — neither needs Ion.
+    _viewerOpts.baseLayer = false;
   }
   var viewer = new Cesium.Viewer('cesiumContainer', _viewerOpts);
 
