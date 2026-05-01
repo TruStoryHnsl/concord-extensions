@@ -70,6 +70,9 @@ async function main() {
 
   await copyTree(resolve(SRC, "src"), resolve(DIST, "src"));
   await copyTree(resolve(SRC, "styles"), resolve(DIST, "styles"));
+  if (existsSync(resolve(SRC, "data"))) {
+    await copyTree(resolve(SRC, "data"), resolve(DIST, "data"));
+  }
   await copyFile(resolve(SRC, "index.html"), resolve(DIST, "index.html"));
   await copyFile(
     resolve(SRC, "manifest.json"),
