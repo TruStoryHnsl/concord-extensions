@@ -134,6 +134,7 @@
   WV.Presets.init(viewer);
   WV.HealthPanel.init();
   WV.BudgetGuard.init();
+  WV.CctvPip.init();
 
   // ── 2D / 3D SCENE TOGGLE ─────────────────────────────────
   var starCanvas = document.querySelector('#cesiumContainer canvas[style*="z-index:0"]');
@@ -281,6 +282,20 @@
     if (idObj) {
       WV.Controls.showIntel(idObj._wvMeta);
 
+      // CCTV: open live feed in PiP grid
+      if (idObj._wvType === 'cctv' && WV.CctvPip) {
+        var _camUrl = idObj._wvImg || '';
+        var _camFmt = WV.CctvPip.detectFormat(_camUrl);
+        var _camId  = (idObj._wvName || '') + '@' + (idObj._wvLat || 0) + ',' + (idObj._wvLon || 0);
+        document.dispatchEvent(new CustomEvent('wv-cctv-pin', { detail: {
+          id:         _camId,
+          name:       idObj._wvName || idObj._wvCity || 'CAM',
+          lat:        idObj._wvLat,
+          lon:        idObj._wvLon,
+          stream_url: _camUrl,
+          format:     _camFmt,
+        }}));
+      }
       // Auto-track flights: lock camera on clicked aircraft + show path
       if (idObj._wvType === 'flight' && idObj._wvIcao && WV.layers.flights) {
         WV.layers.flights.select(idObj._wvIcao);

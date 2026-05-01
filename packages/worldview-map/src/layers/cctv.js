@@ -113,6 +113,10 @@ WV.layers.cctv = (function () {
         id: {
           _wvType: 'cctv',
           _wvImg:  cam.img,
+          _wvLat:  cam.lat,
+          _wvLon:  cam.lon,
+          _wvName: cam.name,
+          _wvCity: cam.city,
           _wvMeta: [
             { key: 'TYPE',  val: 'CCTV CAMERA' },
             { key: 'NAME',  val: cam.name },
