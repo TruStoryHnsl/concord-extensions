@@ -73,8 +73,12 @@ window.WV = window.WV || {};
     var headers = opts.headers || {};
     if (def.user_agent && !headers['User-Agent']) headers['User-Agent'] = def.user_agent;
 
+    var fetchInit = { headers: headers, signal: opts.signal };
+    if (opts.method) fetchInit.method = opts.method;
+    if (opts.body != null) fetchInit.body = opts.body;
+
     var t0 = now();
-    var p = fetch(url, { headers: headers, signal: opts.signal })
+    var p = fetch(url, fetchInit)
       .then(function (r) {
         if (!r.ok) throw new Error('HTTP ' + r.status + ' ' + r.statusText);
         return opts.as === 'text' ? r.text() : r.json();
