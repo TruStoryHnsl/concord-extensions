@@ -82,6 +82,44 @@ export interface ConcordSurfaceResizePayload {
   heightPx: number
 }
 
+/** A Matrix room state event forwarded to the extension (concord PR #39 / INS-066 W5).
+ *
+ * The shell observes the Matrix client's incoming events for the active
+ * room and forwards each one as a `concord:state_event` IFF the
+ * extension's manifest permissions include `state_events` or
+ * `matrix.read`. Extensions without those permissions never see this
+ * message — the gate is enforced shell-side, not in the extension. */
+export interface ConcordStateEventPayload {
+  /** Matrix room ID where the event originated. */
+  roomId: string
+  /** Matrix event type (e.g. `m.room.message`, `com.concord.foo.state`). */
+  eventType: string
+  /** Opaque event content. Shape depends on `eventType`; the shell forwards
+   *  the raw object without interpretation. */
+  content: Record<string, unknown>
+  /** Matrix user ID of the event sender. */
+  sender: string
+  /** Origin server timestamp in milliseconds since epoch. */
+  originServerTs: number
+  /** Optional state_key for state events. Absent on message events. */
+  stateKey?: string
+}
+
+/** Sent back to an extension after a denied verb (concord PR #39 / INS-066 W6). */
+export interface ConcordPermissionDeniedPayload {
+  /** The verb name that was denied (e.g. `extension:send_state_event`). */
+  action: string
+  /** Human-readable reason. Stable identifiers preferred:
+   *  - "manifest_missing_permission"   — manifest didn't request the perm
+   *  - "session_role_forbidden"        — InputRouter rejected the seat/mode
+   *  - "manifest_unknown"              — shell has no manifest for this ext
+   *  - "invalid_payload"               — payload shape was wrong
+   */
+  reason: string
+  /** Optional extra context (e.g. the missing permission name). */
+  detail?: string
+}
+
 export type ConcordShellMessage =
   | { type: "concord:init"; payload: ConcordInitPayload; version: typeof CONCORD_SDK_VERSION }
   | {
@@ -104,6 +142,42 @@ export type ConcordShellMessage =
       payload: ConcordSurfaceResizePayload
       version: typeof CONCORD_SDK_VERSION
     }
+  | {
+      type: "concord:state_event"
+      payload: ConcordStateEventPayload
+      version: typeof CONCORD_SDK_VERSION
+    }
+  | {
+      type: "concord:permission_denied"
+      payload: ConcordPermissionDeniedPayload
+      version: typeof CONCORD_SDK_VERSION
+    }
+
+/** Payload for `extension:send_state_event` (concord PR #39 / INS-066 W6).
+ *
+ * The extension requests that the shell emit a Matrix state event on its
+ * behalf. The shell checks (a) InputRouter session/seat permission, and
+ * (b) the manifest declared `state_events` or `matrix.send`. Both gates
+ * must pass; otherwise a `concord:permission_denied` is posted back. */
+export interface ExtensionSendStateEventPayload {
+  /** Optional Matrix room ID. When omitted, the shell uses the active
+   *  room for the current session. Extensions are NOT allowed to send
+   *  to arbitrary rooms — providing a room_id different from the
+   *  current session's room is rejected. */
+  roomId?: string
+  /** Matrix event type to emit, e.g. `com.concord.orrdia-bridge.party.command`. */
+  eventType: string
+  /** State key. Optional — defaults to empty string. */
+  stateKey?: string
+  /** Event content. */
+  content: Record<string, unknown>
+}
+
+export type ExtensionInboundMessage = {
+  type: "extension:send_state_event"
+  payload: ExtensionSendStateEventPayload
+  version: typeof CONCORD_SDK_VERSION
+}
 
 /** Type guard — exact mirror of upstream `isConcordShellMessage`. */
 export function isConcordShellMessage(data: unknown): data is ConcordShellMessage {
@@ -113,5 +187,20 @@ export function isConcordShellMessage(data: unknown): data is ConcordShellMessag
     typeof d.type === "string" &&
     d.type.startsWith("concord:") &&
     d.version === CONCORD_SDK_VERSION
+  )
+}
+
+/** Type guard for inbound `extension:*` verbs. Mirrors upstream. */
+export function isExtensionInboundMessage(
+  data: unknown,
+): data is ExtensionInboundMessage {
+  if (typeof data !== "object" || data === null) return false
+  const d = data as Record<string, unknown>
+  return (
+    typeof d.type === "string" &&
+    d.type.startsWith("extension:") &&
+    d.version === CONCORD_SDK_VERSION &&
+    typeof d.payload === "object" &&
+    d.payload !== null
   )
 }
