@@ -1,15 +1,29 @@
 /**
  * orrdia-bridge extension (INS-009) — entry point.
  *
- * v0.1.0 first surface = Display. Flow:
+ * v0.1.0: Display surface shipped (HTML5 video + host-emits-events,
+ * observers mirror via applyRemote), inlined SDK bridge, Party + Hybrid
+ * placeholders.
+ *
+ * v0.2.0: Display surface unchanged. Party gets real TV + phone-
+ * controller surfaces wired through bridge.sendStateEvent /
+ * bridge.onStateEvent for the new concord PR #39 channels. Hybrid gets
+ * a real split layout: media surface on the left, matrix.room.message
+ * preview pane on the right (fed by bridge.onStateEvent).
+ *
+ * Flow:
  *   1. ShellBridge resolves init (250ms dev fallback).
  *   2. Mode adapter projects SDK Mode -> UXMode -> ViewVariant.
  *   3. Server-config form -> authenticateByName -> AuthSession.
- *   4. Library browser -> user picks an item -> Display surface mounts.
+ *   4a. uxMode=display, variant=shared-display -> library browser -> Display.
+ *   4b. uxMode=party, variant=shared-display -> Party TV (waits for queue).
+ *   4c. uxMode=party, variant=shared-controller -> Party Controller.
+ *   4d. uxMode=hybrid -> mountHybridSplit.
  *
- * Party + Hybrid surfaces are stubbed for v0.1.0 (partial landing —
- * shared-controller and hybrid-split variants render placeholder text
- * pointing at the spec). Real cross-client sync awaits Phase 1.
+ * Real cross-client sync is gated on the live matrix-js-sdk wiring of
+ * the new concord state_event channels (FUP-A in main concord). Until
+ * that lands, the controller/TV interaction works locally if both
+ * surfaces share the same window (dev) but is a no-op across devices.
  */
 
 import { authenticateByName } from "./engine/auth"
@@ -20,9 +34,16 @@ import {
   UXMode,
   ViewVariant,
 } from "./session/mode-adapter"
+import { PartyCommand } from "./session/sync"
 import { mountDisplay } from "./ui/display"
 import { clearChildren } from "./ui/dom-util"
+import { mountHybridSplit } from "./ui/hybrid-split"
 import { mountLibraryBrowser } from "./ui/library-browser"
+import {
+  mountPartyController,
+  PARTY_COMMAND_EVENT_TYPE,
+} from "./ui/party-controller"
+import { mountPartyTV } from "./ui/party-tv"
 import { mountServerConfig } from "./ui/server-config"
 import { ShellBridge, getDefaultBridge } from "./shell/bridge"
 
@@ -46,7 +67,13 @@ export * from "./session/sync"
 export * from "./session/mode-adapter"
 export { ShellBridge, getDefaultBridge } from "./shell/bridge"
 export { mountDisplay } from "./ui/display"
+export { mountHybridSplit, HYBRID_PREVIEW_LIMIT } from "./ui/hybrid-split"
 export { mountLibraryBrowser } from "./ui/library-browser"
+export {
+  mountPartyController,
+  PARTY_COMMAND_EVENT_TYPE,
+} from "./ui/party-controller"
+export { mountPartyTV } from "./ui/party-tv"
 export { mountServerConfig } from "./ui/server-config"
 
 const SUPPORTED_MODES: readonly UXMode[] = ["display", "party", "hybrid"]
@@ -58,9 +85,13 @@ interface BootstrapState {
   variant: ViewVariant
   participantId: string
   hostId: string
+  bridge: ShellBridge
 }
 
-export async function bootstrap(root: HTMLElement, bridge: ShellBridge = getDefaultBridge()): Promise<void> {
+export async function bootstrap(
+  root: HTMLElement,
+  bridge: ShellBridge = getDefaultBridge(),
+): Promise<void> {
   const init = await bridge.getInit()
   const uxMode = mapSdkModeToUxMode(init.mode, SUPPORTED_MODES)
   const variant = pickViewVariant(uxMode, init.seat)
@@ -71,7 +102,8 @@ export async function bootstrap(root: HTMLElement, bridge: ShellBridge = getDefa
     uxMode,
     variant,
     participantId: init.participantId,
-    hostId: init.participantId, // launcher = host in v0.1.0
+    hostId: init.participantId, // launcher = host until concord:host_transfer arrives
+    bridge,
   }
 
   renderStage(root, state)
@@ -80,11 +112,10 @@ export async function bootstrap(root: HTMLElement, bridge: ShellBridge = getDefa
 function renderStage(root: HTMLElement, state: BootstrapState): void {
   clearChildren(root)
 
-  if (state.variant === "shared-controller") {
-    renderControllerStub(root)
-    return
-  }
-
+  // Server-config / auth gate. The Party TV surface in v0.2.0 still
+  // needs a session because the controller emits opaque itemIds that the
+  // TV resolves via directStreamUrl(session, ...). Until session
+  // persistence ships, every mount re-auths.
   if (!state.session) {
     mountServerConfig(root, {
       onConnect: async (config: ServerConfig) => {
@@ -96,11 +127,60 @@ function renderStage(root: HTMLElement, state: BootstrapState): void {
     return
   }
 
+  // Party-mode phone-controller surface.
+  if (state.variant === "shared-controller") {
+    mountPartyController(root, {
+      session: state.session,
+      bridge: state.bridge,
+      participantId: state.participantId,
+      onError: (err) => {
+        // eslint-disable-next-line no-console
+        console.error("orrdia-bridge: party-controller error", err)
+      },
+    })
+    return
+  }
+
+  // Hybrid split — left pane is the media surface (library + Display),
+  // right pane is a matrix.room.message preview pane fed by
+  // bridge.onStateEvent. Permission-gated by manifest matrix.read.
+  if (state.variant === "hybrid-split") {
+    mountHybridSplit(root, {
+      session: state.session,
+      bridge: state.bridge,
+      participantId: state.participantId,
+      hostId: state.hostId,
+      onError: (err) => {
+        // eslint-disable-next-line no-console
+        console.error("orrdia-bridge: hybrid-split error", err)
+      },
+    })
+    return
+  }
+
+  // Party TV — listens for incoming PartyCommand state_events from the
+  // room and applies them to the TV surface. The TV does not browse the
+  // library directly; it waits for the controllers to queue items.
+  if (state.uxMode === "party" && state.variant === "shared-display") {
+    const tv = mountPartyTV(root, {
+      session: state.session,
+      participantId: state.participantId,
+      hostId: state.hostId,
+      // No itemLookup yet — the controllers know item titles, the TV
+      // shows the bare itemId. A follow-up could bake item metadata into
+      // the command payload so the TV banner reads "Movie A" instead.
+    })
+    state.bridge.onStateEvent((p) => {
+      if (p.eventType !== PARTY_COMMAND_EVENT_TYPE) return
+      const cmd = p.content as unknown as PartyCommand
+      if (!cmd || typeof cmd !== "object" || typeof (cmd as { type?: unknown }).type !== "string") return
+      tv.applyExternalCommand(cmd)
+    })
+    return
+  }
+
+  // Pure Display mode (uxMode=display, variant=shared-display).
   if (!state.selectedItem) {
-    if (state.variant === "hybrid-split") {
-      renderHybridSplit(root, state)
-      return
-    }
     mountLibraryBrowser(root, {
       session: state.session,
       onSelect: (item) => {
@@ -115,7 +195,6 @@ function renderStage(root: HTMLElement, state: BootstrapState): void {
     return
   }
 
-  // Display surface — selected item.
   mountDisplay(root, {
     session: state.session,
     item: state.selectedItem,
@@ -124,65 +203,6 @@ function renderStage(root: HTMLElement, state: BootstrapState): void {
     hostId: state.hostId,
     onBack: () => {
       state.selectedItem = null
-      renderStage(root, state)
-    },
-  })
-}
-
-function renderControllerStub(root: HTMLElement): void {
-  // Party-mode phone-controller variant — partial landing, placeholder UI.
-  const wrap = document.createElement("div")
-  wrap.style.padding = "1em"
-
-  const h2 = document.createElement("h2")
-  h2.textContent = "Phone Controller"
-  wrap.appendChild(h2)
-
-  const p = document.createElement("p")
-  p.textContent =
-    "Party-mode controller is a stub in v0.1.0. The TV/host device runs the player; this surface will gain a search + send-to-TV UI in a follow-up cycle. See docs/extensions/specs/orrdia-bridge.md section 8.2."
-  wrap.appendChild(p)
-
-  root.appendChild(wrap)
-}
-
-function renderHybridSplit(root: HTMLElement, state: BootstrapState): void {
-  // Hybrid-mode split layout — partial landing. Left = library/player,
-  // right = chat-panel placeholder.
-  const wrap = document.createElement("div")
-  wrap.style.display = "flex"
-  wrap.style.height = "100%"
-
-  const leftPane = document.createElement("div")
-  leftPane.style.flex = "2"
-  leftPane.style.minWidth = "0"
-  wrap.appendChild(leftPane)
-
-  const rightPane = document.createElement("div")
-  rightPane.style.flex = "1"
-  rightPane.style.minWidth = "0"
-  rightPane.style.borderLeft = "1px solid #888"
-  rightPane.style.padding = "0.5em"
-  const chatTitle = document.createElement("h3")
-  chatTitle.textContent = "Chat"
-  rightPane.appendChild(chatTitle)
-  const chatStub = document.createElement("p")
-  chatStub.textContent =
-    "Hybrid chat surface is a stub in v0.1.0. Will tap matrix.read/send permissions in a follow-up cycle. See spec section 8.3."
-  rightPane.appendChild(chatStub)
-  wrap.appendChild(rightPane)
-
-  root.appendChild(wrap)
-
-  if (!state.session) {
-    return
-  }
-  mountLibraryBrowser(leftPane, {
-    session: state.session,
-    onSelect: (item) => {
-      state.selectedItem = item
-      // For now hybrid still uses the Display surface for media playback.
-      state.variant = "shared-display"
       renderStage(root, state)
     },
   })
