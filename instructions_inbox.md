@@ -54,3 +54,14 @@ UX mode: None (this is infrastructure/protocol, not a user-facing display extens
 Build a Jackbox-style party game suite native to the Concord ecosystem. No dependency on external Jackbox titles — full in-house implementation of the game format (prompt/response, voting, scoring loop).
 
 Supported modes: Party.
+
+### INS-009-FUP: Orrdia Bridge — cold-reader test pass (source: develop_feature INS-009 cycle, 2026-04-30)
+Re-author or audit the unit tests in `packages/orrdia-bridge/src/**/__tests__/` from a cold-reader perspective. v0.1.0's tests were written in the same session as the engine — known violation of CLAUDE.md "tests-in-separate-session" rule. Concentrate scrutiny on:
+
+- `engine/__tests__/stream-url.test.ts`: substring assertions like `"includes('api_key=')"` will pass even if the production code emits a differently-named param. Verify against a real orrdia/jellyfin response shape.
+- `ui/__tests__/display.test.ts`: applyRemote / host-emit roundtrip — confirm assertions check user-visible state (video element src, currentTime, paused), not internal reducer fields.
+- All HTTP-client tests use mocked fetch; add at least one Playwright smoke that boots the dev server, fills the form against a real (or fake-server-shaped) orrdia, and asserts `<video src=...>` actually appears.
+
+Out of scope: Party + Hybrid surfaces (those are tracked separately as INS-009 partial-landing items in PLAN.md).
+
+Supported modes: N/A (test-quality work, no UX surface).
