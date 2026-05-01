@@ -16,9 +16,13 @@ import {
   ConcordInitPayload,
   ConcordParticipantJoinPayload,
   ConcordParticipantLeavePayload,
+  ConcordPermissionDeniedPayload,
   ConcordShellMessage,
+  ConcordStateEventPayload,
   ConcordSurfaceResizePayload,
   CONCORD_SDK_VERSION,
+  ExtensionInboundMessage,
+  ExtensionSendStateEventPayload,
   isConcordShellMessage,
 } from "./sdk-types"
 
@@ -49,6 +53,8 @@ export class ShellBridge {
   private leaveHandlers = new Set<(p: ConcordParticipantLeavePayload) => void>()
   private hostTransferHandlers = new Set<(p: ConcordHostTransferPayload) => void>()
   private resizeHandlers = new Set<(p: ConcordSurfaceResizePayload) => void>()
+  private stateEventHandlers = new Set<(p: ConcordStateEventPayload) => void>()
+  private permissionDeniedHandlers = new Set<(p: ConcordPermissionDeniedPayload) => void>()
   private destroyed = false
   private msgListener = (e: MessageEvent) => this.onMessage(e)
 
@@ -104,6 +110,35 @@ export class ShellBridge {
     return () => this.resizeHandlers.delete(fn)
   }
 
+  /** Subscribe to incoming Matrix room state events forwarded by the shell. */
+  onStateEvent(fn: (p: ConcordStateEventPayload) => void): Unsubscribe {
+    this.stateEventHandlers.add(fn)
+    return () => this.stateEventHandlers.delete(fn)
+  }
+
+  /** Subscribe to permission_denied responses (extension verb rejected). */
+  onPermissionDenied(fn: (p: ConcordPermissionDeniedPayload) => void): Unsubscribe {
+    this.permissionDeniedHandlers.add(fn)
+    return () => this.permissionDeniedHandlers.delete(fn)
+  }
+
+  /**
+   * Request the shell emit a Matrix state event on this extension's behalf.
+   * Posts `extension:send_state_event` to window.parent (production) or to
+   * the local window (dev fallback so localhost dev can self-loopback).
+   */
+  sendStateEvent(payload: ExtensionSendStateEventPayload): void {
+    if (!this.win) return
+    const msg: ExtensionInboundMessage = {
+      type: "extension:send_state_event",
+      payload,
+      version: CONCORD_SDK_VERSION,
+    }
+    const target =
+      this.win.parent && this.win.parent !== this.win ? this.win.parent : this.win
+    target.postMessage(msg, "*")
+  }
+
   destroy(): void {
     if (this.destroyed) return
     this.destroyed = true
@@ -117,6 +152,8 @@ export class ShellBridge {
     this.leaveHandlers.clear()
     this.hostTransferHandlers.clear()
     this.resizeHandlers.clear()
+    this.stateEventHandlers.clear()
+    this.permissionDeniedHandlers.clear()
   }
 
   private initCaptures = new Set<(m: ConcordShellMessage) => void>()
@@ -152,6 +189,14 @@ export class ShellBridge {
     }
     if (data.type === "concord:surface_resize") {
       for (const h of this.resizeHandlers) h(data.payload)
+      return
+    }
+    if (data.type === "concord:state_event") {
+      for (const h of this.stateEventHandlers) h(data.payload)
+      return
+    }
+    if (data.type === "concord:permission_denied") {
+      for (const h of this.permissionDeniedHandlers) h(data.payload)
       return
     }
   }
