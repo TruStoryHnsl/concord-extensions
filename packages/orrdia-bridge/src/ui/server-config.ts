@@ -47,7 +47,7 @@ export function mountServerConfig(
   form.appendChild(password.label)
 
   const btn = document.createElement("button")
-  btn.type = "submit"
+  btn.type = "button"
   btn.textContent = "Connect"
   form.appendChild(btn)
 
@@ -57,7 +57,7 @@ export function mountServerConfig(
   errBox.style.minHeight = "1.2em"
   form.appendChild(errBox)
 
-  form.addEventListener("submit", (e) => {
+  const handleSubmit = (e: Event) => {
     e.preventDefault()
     errBox.textContent = ""
     const config: ServerConfig = {
@@ -78,7 +78,9 @@ export function mountServerConfig(
     Promise.resolve(opts.onConnect(config)).catch((err) => {
       errBox.textContent = err?.message ?? String(err)
     })
-  })
+  }
+  btn.addEventListener("click", handleSubmit)
+  form.addEventListener("submit", handleSubmit)
 
   root.appendChild(form)
 

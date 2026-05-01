@@ -559,7 +559,7 @@ function renderServerPrompt(root: HTMLElement, state: WizardState, send: (e: Wiz
   const url = makeInput("Server URL", "url", state.serverPromptValue || "")
   form.appendChild(url.label)
   const btn = document.createElement("button")
-  btn.type = "submit"
+  btn.type = "button"
   btn.textContent = "Continue"
   form.appendChild(btn)
   const err = makeErrBox()
@@ -577,6 +577,7 @@ function renderServerPrompt(root: HTMLElement, state: WizardState, send: (e: Wiz
     }
     send({ type: "URL_SUBMIT", baseUrl: v })
   })
+  btn.addEventListener("click", () => form.dispatchEvent(new Event("submit", { cancelable: true })))
   root.appendChild(form)
 }
 
@@ -615,7 +616,7 @@ function renderWizardAdmin(
   form.appendChild(pw.label)
   form.appendChild(confirm.label)
   const btn = document.createElement("button")
-  btn.type = "submit"
+  btn.type = "button"
   btn.textContent = "Create account"
   form.appendChild(btn)
   const err = makeErrBox()
@@ -642,6 +643,7 @@ function renderWizardAdmin(
     }
     onSubmit(next)
   })
+  btn.addEventListener("click", () => form.dispatchEvent(new Event("submit", { cancelable: true })))
   root.appendChild(form)
 }
 
@@ -686,7 +688,7 @@ function renderWizardLibrary(
   form.appendChild(path.label)
 
   const submitBtn = document.createElement("button")
-  submitBtn.type = "submit"
+  submitBtn.type = "button"
   submitBtn.textContent = "Add library and continue"
   form.appendChild(submitBtn)
 
@@ -705,6 +707,7 @@ function renderWizardLibrary(
       path: path.input.value,
     })
   })
+  submitBtn.addEventListener("click", () => form.dispatchEvent(new Event("submit", { cancelable: true })))
   root.appendChild(form)
 }
 
@@ -736,13 +739,14 @@ function renderWizardRemote(
   p.style.opacity = "0.75"
   form.appendChild(p)
   const btn = document.createElement("button")
-  btn.type = "submit"
+  btn.type = "button"
   btn.textContent = "Finish setup"
   form.appendChild(btn)
   form.addEventListener("submit", (e) => {
     e.preventDefault()
     onSubmit({ enableRemoteAccess: cb.checked })
   })
+  btn.addEventListener("click", () => form.dispatchEvent(new Event("submit", { cancelable: true })))
   root.appendChild(form)
 }
 
