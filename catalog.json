@@ -67,6 +67,29 @@
       "browser_keys": null
     },
     {
+      "id": "com.concord.orrdia-bridge",
+      "version": "0.2.0",
+      "name": "Orrdia Bridge",
+      "description": "Bridge to an orrdia/Jellyfin server. Browse the shared library and stream movies, shows, and music with synchronized playback for everyone in the room.",
+      "pricing": "free",
+      "modes": [
+        "party",
+        "display",
+        "hybrid"
+      ],
+      "permissions": [
+        "state_events",
+        "matrix.read",
+        "matrix.send",
+        "fetch:external"
+      ],
+      "min_concord_version": "0.1.0",
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/orrdia-bridge/com.concord.orrdia-bridge@0.2.0.zip",
+      "bundle_size_bytes": 8586,
+      "needs_proxy": null,
+      "browser_keys": null
+    },
+    {
       "id": "com.concord.game-maker",
       "version": "0.1.0",
       "name": "Game Maker",

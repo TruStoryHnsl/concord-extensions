@@ -1,6 +1,6 @@
 {
   "name": "concord-ext-orrdia-bridge",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Orrdia Bridge extension for Concord (INS-009) — connect to an orrdia/Jellyfin server and stream synchronized media playback.",
   "private": true,
   "type": "module",
