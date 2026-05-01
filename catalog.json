@@ -68,7 +68,7 @@
     },
     {
       "id": "com.concord.orrdia-bridge",
-      "version": "0.2.0",
+      "version": "0.3.0",
       "name": "Orrdia Bridge",
       "description": "Bridge to an orrdia/Jellyfin server. Browse the shared library and stream movies, shows, and music with synchronized playback for everyone in the room.",
       "pricing": "free",
@@ -84,8 +84,8 @@
         "fetch:external"
       ],
       "min_concord_version": "0.1.0",
-      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/orrdia-bridge/com.concord.orrdia-bridge@0.2.0.zip",
-      "bundle_size_bytes": 8586,
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/orrdia-bridge/com.concord.orrdia-bridge@0.3.0.zip",
+      "bundle_size_bytes": 11657,
       "needs_proxy": null,
       "browser_keys": null
     },
