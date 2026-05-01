@@ -1,0 +1,11 @@
+{
+  "id": "com.concord.orrdia-bridge",
+  "version": "0.1.0",
+  "name": "Orrdia Bridge",
+  "description": "Bridge to an orrdia/Jellyfin server. Browse the shared library and stream movies, shows, and music with synchronized playback for everyone in the room.",
+  "pricing": "free",
+  "entry": "index.html",
+  "modes": ["party", "display", "hybrid"],
+  "permissions": ["state_events", "fetch:external"],
+  "minConcordVersion": "0.1.0"
+}

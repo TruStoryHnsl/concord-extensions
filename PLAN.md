@@ -53,6 +53,7 @@ The INS-036 session model is **already implemented** in the main concord repo (W
 | Among Us Clone | ✓ | | | | ✓ |
 | Card Game Suite | ✓ | ✓ | ✓ | | ✓ |
 | JackBox Clone | ✓ | | | | |
+| Orrdia Bridge | ✓ | ✓ | | | ✓ |
 | Game Maker Protocol | — | — | — | — | — |
 
 ### Tech stack
@@ -167,6 +168,10 @@ INS-036 already implements the session/mode mechanics. This phase documents the 
 
 - [x] **INS-008: JackBox Clone — spec** (`docs/extensions/specs/jackbox-clone.md`): shared round state machine, five mini-games.
 - [ ] **INS-008: JackBox Clone — implementation** — Party mode.
+
+- [x] **INS-009: Orrdia Bridge — spec** (`docs/extensions/specs/orrdia-bridge.md`): TS extension that connects to an orrdia server (forked jellyfin, https://github.com/TruStoryHnsl/orrdia) and surfaces its media library inside Concord. Spec must define: server-connection config (base URL + API key), authentication flow against orrdia's Jellyfin-compatible `/Users/AuthenticateByName` API, library/item browsing surface, stream-URL acquisition (HLS / direct), shared-playback sync model for Display + Party modes (one client elects host, others mirror via state events), and Hybrid layout (player + chat). Permissions: `state_events`, `fetch:external`. Pricing: `free`. Modes: Party, Display, Hybrid.
+- [ ] **INS-009: Orrdia Bridge — implementation** — `packages/orrdia-bridge/` TS package. Uses inlined Concord SDK bridge (same pattern as INS-003/004). Local-loop sync until Phase 1 ships. Out-of-scope for this repo: any changes to the orrdia server itself (those land in https://github.com/TruStoryHnsl/orrdia).
+  _Partial: v0.1.0 shipped — engine (auth, client, stream-url), pure SyncState reducer, Display surface (HTML5 video + host-emits-events, observers mirror via applyRemote), inlined SDK bridge with 250ms dev fallback, mode-adapter for display/party/hybrid. 33 tests pass; bundle 15.99 kB → `com.concord.orrdia-bridge@0.1.0.zip`. Party (phone-controller) and Hybrid (split media+chat) variants render placeholder UI only — full surfaces deferred. Cross-client sync is local-loop; awaits Phase 1 state_events. Tests authored in same session as code (project rule violation) — needs cold-reader test pass before trusting against a live orrdia server._
 
 ### Phase 7 — SDK Extraction
 **Status**: deferred (post-advertising phase)
