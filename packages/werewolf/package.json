@@ -13,7 +13,7 @@
     "bundle": "pnpm build && node scripts/pack.mjs"
   },
   "devDependencies": {
-    "@types/node": "^20.0.0",
+    "@types/node": "^25.6.0",
     "@vitest/coverage-v8": "^1.5.0",
     "jsdom": "^24.0.0",
     "typescript": "^5.4.0",
