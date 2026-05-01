@@ -4,7 +4,16 @@
   'use strict';
 
   // ── TOKEN ─────────────────────────────────────────────────
-  Cesium.Ion.defaultAccessToken = WV.config.CESIUM_TOKEN;
+  // Only assign Ion token if the user has configured one. Setting it to an
+  // empty string still triggers Ion asset fetches (with blank token → 401 on
+  // every World Terrain / base imagery tile request, which then breaks the
+  // entire viewer init). When no token is set, we skip terrain entirely and
+  // rely on either Photoreal 3D Tiles (if GOOGLE_MAPS_KEY is set) or the
+  // default ellipsoid surface as a graceful fallback.
+  var _hasCesiumToken = !!(WV.config.CESIUM_TOKEN || '').trim();
+  if (_hasCesiumToken) {
+    Cesium.Ion.defaultAccessToken = WV.config.CESIUM_TOKEN;
+  }
 
   // ── STAR BACKGROUND ──────────────────────────────────────
   // Procedurally generated star canvas injected behind the WebGL canvas.
@@ -53,8 +62,11 @@
   }());
 
   // ── VIEWER ────────────────────────────────────────────────
-  var viewer = new Cesium.Viewer('cesiumContainer', {
-    terrain:                         Cesium.Terrain.fromWorldTerrain(),
+  // World Terrain requires a Cesium Ion token (asset 1). Skip the terrain
+  // arg entirely when the user hasn't configured a token; the viewer falls
+  // back to a smooth ellipsoid, which Photoreal 3D Tiles will replace anyway
+  // when GOOGLE_MAPS_KEY is set.
+  var _viewerOpts = {
     animation:                       false,
     baseLayerPicker:                 false,
     fullscreenButton:                false,
@@ -72,7 +84,11 @@
     // Only render when scene actually changes — biggest CPU win
     requestRenderMode:               true,
     maximumRenderTimeChange:         Infinity,
-  });
+  };
+  if (_hasCesiumToken) {
+    _viewerOpts.terrain = Cesium.Terrain.fromWorldTerrain();
+  }
+  var viewer = new Cesium.Viewer('cesiumContainer', _viewerOpts);
 
   // Hide the low-res default skybox — replaced by our star canvas
   viewer.scene.skyBox.show        = false;
