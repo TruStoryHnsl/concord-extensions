@@ -19,7 +19,14 @@ WV.sources = {
   gmaps_tiles: { label: 'Google 3D Tiles',   transport: 'cesium-tileset', direct_url: 'https://tile.googleapis.com/v1/3dtiles/root.json', auth: 'browser-key', daily_cap: 25000 },
   nws:         { label: 'NWS Alerts',        transport: 'rest', direct_url: 'https://api.weather.gov/alerts/active', refresh_ms: 300000, rate_per_sec: 1, auth: 'none', user_agent: 'WorldView/0.2 (https://concorrd.com)', daily_cap: null },
 
-  // Slice B sources are appended in their respective tasks.
+  // Slice B sources
+  airplanes_live: { label: 'airplanes.live (Mil)', transport: 'rest', direct_url: 'https://api.airplanes.live/v2/mil', refresh_ms: 5000, rate_per_sec: 1, daily_cap: null, auth: 'none' },
+  firms:          { label: 'FIRMS Wildfires',       transport: 'rest', refresh_ms: 3600000, rate_per_sec: 0.1, daily_cap: 720, auth: 'browser-key' },
+  nhc:            { label: 'NHC Storms',            transport: 'rest', direct_url: 'https://www.nhc.noaa.gov/gis/kml/nhc_active.kml', refresh_ms: 1800000, rate_per_sec: 0.1, daily_cap: 100, auth: 'none' },
+  launchlib:      { label: 'Upcoming Launches',     transport: 'rest', direct_url: 'https://ll.thespacedevs.com/2.3.0/launches/upcoming/?limit=20', refresh_ms: 3600000, rate_per_sec: 0.1, daily_cap: 100, auth: 'browser-key' },
+  cf_outages:     { label: 'Net Outages (CF)',      transport: 'rest', direct_url: 'https://api.cloudflare.com/client/v4/radar/annotations/outages?dateRange=24h', refresh_ms: 1800000, rate_per_sec: 0.1, daily_cap: 100, auth: 'browser-key' },
+  osm_alpr:       { label: 'ALPR Cameras',          transport: 'rest', direct_url: 'https://overpass-api.de/api/interpreter', refresh_ms: 3600000, rate_per_sec: 0.05, daily_cap: 50, auth: 'none' },
+  timezones:      { label: 'Time Zones',            transport: 'static', refresh_ms: 0, rate_per_sec: 1, daily_cap: null, auth: 'none' },
 };
 
 WV.sourceState = {};
