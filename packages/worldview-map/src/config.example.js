@@ -13,4 +13,5 @@ WV.config = {
   SENTINEL_CLIENT_SECRET:'',
   TOMTOM_KEY:           '',            // free at https://developer.tomtom.com
   WINDY_KEY:            'YOUR_WINDY_KEY_HERE',  // free at https://api.windy.com
+  GOOGLE_MAPS_KEY:        'YOUR_GOOGLE_MAPS_KEY_HERE',  // restricted to: Map Tiles, Geocoding, Places, AQ, Pollen
 };

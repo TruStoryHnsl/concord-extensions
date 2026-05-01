@@ -18,7 +18,6 @@ WV.layers.flights = (function () {
   var MAX_HIST    = 30;
   var FOLLOW_ALT  = 280000;
 
-  var BASE_URL   = '/proxy/opensky';
   var REFRESH_MS = 15000;
 
   // Dead-reckoning state: keyed by icao24
@@ -26,10 +25,15 @@ WV.layers.flights = (function () {
   var _trackEntity  = null;  // invisible entity the camera follows
   var _modelEntity  = null;  // 3D model for tracked plane
 
+  // Tween + heading-easing state
+  var TWEEN_MS    = 1500;
+  var _tween      = null;
+  var _curHeading = null;
+
   var MODEL_URI     = 'src/models/plane.glb';
   var MODEL_SCALE   = 30;
   var MODEL_MIN_PX  = 16;
-  var CHASE_RANGE   = 4000;    // camera distance in meters for chase view
+  var CHASE_RANGE   = 6000;    // camera distance in meters for chase view
   var CHASE_PITCH   = -20;     // degrees — slight downward look
 
   var IDX = {
@@ -75,27 +79,66 @@ WV.layers.flights = (function () {
 
   // ── DEAD RECKONING ───────────────────────────────────────
   function _drPredict(state, now) {
-    if (!state.velocity || !state.heading) return state;
+    if (!state.velocity || state.heading == null) return state;
     var dt = (now - state.timestamp) / 1000;
     if (dt < 0 || dt > 30) return state;
+    var R    = 6371000;
+    var d    = state.velocity * dt;
+    var brg  = Cesium.Math.toRadians(state.heading);
+    var lat1 = Cesium.Math.toRadians(state.lat);
+    var lon1 = Cesium.Math.toRadians(state.lon);
+    var lat2 = Math.asin(Math.sin(lat1) * Math.cos(d / R) +
+                         Math.cos(lat1) * Math.sin(d / R) * Math.cos(brg));
+    var lon2 = lon1 + Math.atan2(
+      Math.sin(brg) * Math.sin(d / R) * Math.cos(lat1),
+      Math.cos(d / R) - Math.sin(lat1) * Math.sin(lat2)
+    );
+    return Object.assign({}, state, {
+      lat:       Cesium.Math.toDegrees(lat2),
+      lon:       Cesium.Math.toDegrees(lon2),
+      timestamp: now,
+    });
+  }
 
-    var hdgRad = state.heading * Math.PI / 180;
-    var dLat   = (state.velocity * dt * Math.cos(hdgRad)) / 111320;
-    var dLon   = (state.velocity * dt * Math.sin(hdgRad)) / (111320 * Math.cos(state.lat * Math.PI / 180));
+  // ── HEADING EASING ───────────────────────────────────────
+  function _easedHeading(target) {
+    if (_curHeading == null) { _curHeading = target; return target; }
+    var delta = ((target - _curHeading + 540) % 360) - 180;
+    _curHeading += delta * 0.10;
+    return _curHeading;
+  }
 
+  // ── TWEEN HELPERS ────────────────────────────────────────
+  function _onFreshState(state) {
+    var prev = _liveState[trackedIcao];
+    if (prev) {
+      var pred = _drPredict(prev, Date.now());
+      _tween = {
+        from_lat: pred.lat, from_lon: pred.lon, from_alt: pred.baro_alt || 10000,
+        to_lat:   state.lat, to_lon:  state.lon, to_alt:  state.baro_alt || 10000,
+        t0: Date.now(),
+      };
+    }
+    _liveState[trackedIcao] = state;
+  }
+
+  function _tweenedPosition() {
+    var s = _liveState[trackedIcao];
+    if (!s) return null;
+    if (!_tween) return _drPredict(s, Date.now());
+    var k = Math.min(1, (Date.now() - _tween.t0) / TWEEN_MS);
+    if (k >= 1) { _tween = null; return _drPredict(s, Date.now()); }
     return {
-      lat:       state.lat + dLat,
-      lon:       state.lon + dLon,
-      alt:       state.alt,
-      heading:   state.heading,
-      velocity:  state.velocity,
-      timestamp: state.timestamp,
+      lat:      _tween.from_lat + (_tween.to_lat  - _tween.from_lat) * k,
+      lon:      _tween.from_lon + (_tween.to_lon  - _tween.from_lon) * k,
+      baro_alt: _tween.from_alt + (_tween.to_alt  - _tween.from_alt) * k,
+      heading:  s.heading,
     };
   }
 
   // ── 3D MODEL FOR TRACKED PLANE ────────────────────────────
   function _createModelEntity(viewer, state) {
-    var alt = (state.alt || 10000) + 100;
+    var alt = (state.baro_alt || state.alt || 10000) + 100;
     _modelEntity = viewer.entities.add({
       position:    Cesium.Cartesian3.fromDegrees(state.lon, state.lat, alt),
       orientation: _hprOrientation(state.lat, state.lon, alt, state.heading),
@@ -127,23 +170,23 @@ WV.layers.flights = (function () {
 
       var state = _liveState[trackedIcao];
       if (state) {
-        var predicted = _drPredict(state, Date.now());
-        var alt = (predicted.alt || 10000);
+        var pos = _tweenedPosition();
+        var alt = (pos ? (pos.baro_alt || 10000) : 10000);
 
         // Move the invisible anchor — camera follows via trackedEntity
-        if (_trackEntity) {
+        if (_trackEntity && pos) {
           _trackEntity.position = Cesium.Cartesian3.fromDegrees(
-            predicted.lon, predicted.lat, alt
+            pos.lon, pos.lat, alt
           );
         }
 
         // Update 3D model position + orientation
-        if (_modelEntity) {
+        if (_modelEntity && pos) {
           _modelEntity.position = Cesium.Cartesian3.fromDegrees(
-            predicted.lon, predicted.lat, alt
+            pos.lon, pos.lat, alt
           );
           _modelEntity.orientation = _hprOrientation(
-            predicted.lat, predicted.lon, alt, predicted.heading
+            pos.lat, pos.lon, alt, _easedHeading(state.heading)
           );
         }
 
@@ -200,11 +243,7 @@ WV.layers.flights = (function () {
 
   // ── OPENSKY TRACK ENDPOINT ────────────────────────────────
   function fetchTrack(icao24) {
-    return fetch(BASE_URL + '/tracks/all?icao24=' + icao24 + '&time=0')
-      .then(function (r) {
-        if (!r.ok) throw new Error('track ' + r.status);
-        return r.json();
-      })
+    return WV.fetch('opensky', '/tracks/all?icao24=' + icao24 + '&time=0')
       .then(function (data) {
         if (!data || !data.path || data.path.length < 2) return null;
         return data.path
@@ -216,6 +255,8 @@ WV.layers.flights = (function () {
   // ── SELECT / TRACK ────────────────────────────────────────
   function select(icao24) {
     trackedIcao = icao24;
+    _tween      = null;
+    _curHeading = null;
     var v = WV.viewer;
     if (!v) return;
 
@@ -268,7 +309,9 @@ WV.layers.flights = (function () {
   }
 
   function clearTracking() {
-    trackedIcao = null;
+    trackedIcao  = null;
+    _tween       = null;
+    _curHeading  = null;
     _stopTracking();
     if (pathEntity && WV.viewer)  { WV.viewer.entities.remove(pathEntity);  pathEntity  = null; }
     if (_trackEntity && WV.viewer) { WV.viewer.entities.remove(_trackEntity); _trackEntity = null; }
@@ -278,11 +321,7 @@ WV.layers.flights = (function () {
   function fetchAndRender(viewer) {
     if (!enabled) return Promise.resolve();
 
-    return fetch(BASE_URL + '/states/all')
-      .then(function (r) {
-        if (!r.ok) throw new Error('OpenSky ' + r.status);
-        return r.json();
-      })
+    return WV.fetch('opensky', '/states/all')
       .then(function (data) {
         if (!enabled) return;
 
@@ -299,14 +338,19 @@ WV.layers.flights = (function () {
           posHistory[icao].push({ lon: s[IDX.lon], lat: s[IDX.lat], alt: s[IDX.baro_alt] || 0 });
           if (posHistory[icao].length > MAX_HIST) posHistory[icao].shift();
 
-          _liveState[icao] = {
+          var freshState = {
             lat:       s[IDX.lat],
             lon:       s[IDX.lon],
-            alt:       s[IDX.baro_alt] || 0,
+            baro_alt:  s[IDX.baro_alt] || 0,
             heading:   s[IDX.heading],
             velocity:  s[IDX.velocity],
             timestamp: now,
           };
+          if (icao === trackedIcao) {
+            _onFreshState(freshState);
+          } else {
+            _liveState[icao] = freshState;
+          }
         });
 
         // Billboards for all planes

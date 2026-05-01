@@ -1,6 +1,9 @@
 // layers/jamming.js — GPS jamming / interference zones
 // Static OSINT data — sourced from GPSJam.org, EUROCONTROL NOTAMs,
 // OSINTdefender, and open-source military analysis (2023-2025)
+//
+// Note: no network fetch — data is statically embedded. Source health is wired
+// via WV.sourceState.jamming on layer enable.
 
 window.WV = window.WV || {};
 WV.layers = WV.layers || {};
@@ -92,6 +95,11 @@ WV.layers.jamming = (function () {
 
       WV.Controls.updateCount('jamming', ZONES.length);
       WV.Controls.setStatus('GPS JAM: ' + ZONES.length + ' active interference zones');
+      // Static data — record last_success_ts to show as healthy in health panel
+      if (WV.sourceState && WV.sourceState.jamming) {
+        WV.sourceState.jamming.last_success_ts = Date.now();
+        WV.sourceState.jamming.last_error = null;
+      }
       viewer.scene.requestRender();
       resolve();
     });

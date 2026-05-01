@@ -1,5 +1,8 @@
 // layers/weather.js — US NEXRAD radar overlay
 // Source: Iowa State Mesonet WMS — no key required
+//
+// Note: tile fetches are handled by Cesium.WebMapServiceImageryProvider (not raw
+// fetch). Source health is wired via WV.sourceState.windy on layer enable.
 
 window.WV = window.WV || {};
 WV.layers = WV.layers || {};
@@ -18,6 +21,11 @@ WV.layers.weather = (function () {
       });
       nexradLayer       = viewer.imageryLayers.addImageryProvider(p);
       nexradLayer.alpha = 0.7;
+      // Record that imagery was queued successfully (tiles fetched by Cesium internally)
+      if (WV.sourceState && WV.sourceState.windy) {
+        WV.sourceState.windy.last_success_ts = Date.now();
+        WV.sourceState.windy.last_error = null;
+      }
       WV.Controls.setStatus('WEATHER: NEXRAD radar active (US coverage)');
     } catch (e) {
       console.warn('NEXRAD provider failed:', e);

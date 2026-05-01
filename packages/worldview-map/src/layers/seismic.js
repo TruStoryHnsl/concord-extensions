@@ -8,14 +8,10 @@ WV.layers.seismic = (function () {
   var entities = [];
   var enabled  = false;
 
-  // USGS GeoJSON feed — past 24h, magnitude 1.0+
-  var API_URL = 'https://earthquake.usgs.gov/earthquakes/feed/v1.0/summary/1.0_day.geojson';
-
   function enable(viewer) {
     enabled = true;
     return new Promise(function (resolve, reject) {
-      fetch(API_URL)
-        .then(function (r) { return r.json(); })
+      WV.fetch('usgs')
         .then(function (data) {
           if (!enabled) { resolve(); return; } // disabled while fetching
 
