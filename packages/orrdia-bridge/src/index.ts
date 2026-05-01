@@ -7,10 +7,9 @@
  *
  * v0.2.0: Display surface unchanged. Party gets real TV + phone-
  * controller surfaces wired through bridge.sendStateEvent /
- * bridge.onStateEvent for the new concord PR #39 channels. Hybrid stays
- * placeholder in this commit; the next commit replaces it with a real
- * split layout that subscribes to bridge.onStateEvent for matrix message
- * preview.
+ * bridge.onStateEvent for the new concord PR #39 channels. Hybrid gets
+ * a real split layout: media surface on the left, matrix.room.message
+ * preview pane on the right (fed by bridge.onStateEvent).
  *
  * Flow:
  *   1. ShellBridge resolves init (250ms dev fallback).
@@ -19,7 +18,7 @@
  *   4a. uxMode=display, variant=shared-display -> library browser -> Display.
  *   4b. uxMode=party, variant=shared-display -> Party TV (waits for queue).
  *   4c. uxMode=party, variant=shared-controller -> Party Controller.
- *   4d. uxMode=hybrid -> renderHybridSplit (replaced in next commit).
+ *   4d. uxMode=hybrid -> mountHybridSplit.
  *
  * Real cross-client sync is gated on the live matrix-js-sdk wiring of
  * the new concord state_event channels (FUP-A in main concord). Until
@@ -38,6 +37,7 @@ import {
 import { PartyCommand } from "./session/sync"
 import { mountDisplay } from "./ui/display"
 import { clearChildren } from "./ui/dom-util"
+import { mountHybridSplit } from "./ui/hybrid-split"
 import { mountLibraryBrowser } from "./ui/library-browser"
 import {
   mountPartyController,
@@ -67,6 +67,7 @@ export * from "./session/sync"
 export * from "./session/mode-adapter"
 export { ShellBridge, getDefaultBridge } from "./shell/bridge"
 export { mountDisplay } from "./ui/display"
+export { mountHybridSplit, HYBRID_PREVIEW_LIMIT } from "./ui/hybrid-split"
 export { mountLibraryBrowser } from "./ui/library-browser"
 export {
   mountPartyController,
@@ -140,11 +141,20 @@ function renderStage(root: HTMLElement, state: BootstrapState): void {
     return
   }
 
-  // Hybrid split — placeholder in this commit; replaced in the next
-  // commit by mountHybridSplit (which subscribes to bridge.onStateEvent
-  // for matrix message preview).
+  // Hybrid split — left pane is the media surface (library + Display),
+  // right pane is a matrix.room.message preview pane fed by
+  // bridge.onStateEvent. Permission-gated by manifest matrix.read.
   if (state.variant === "hybrid-split") {
-    renderHybridSplit(root, state)
+    mountHybridSplit(root, {
+      session: state.session,
+      bridge: state.bridge,
+      participantId: state.participantId,
+      hostId: state.hostId,
+      onError: (err) => {
+        // eslint-disable-next-line no-console
+        console.error("orrdia-bridge: hybrid-split error", err)
+      },
+    })
     return
   }
 
@@ -193,49 +203,6 @@ function renderStage(root: HTMLElement, state: BootstrapState): void {
     hostId: state.hostId,
     onBack: () => {
       state.selectedItem = null
-      renderStage(root, state)
-    },
-  })
-}
-
-function renderHybridSplit(root: HTMLElement, state: BootstrapState): void {
-  // Placeholder — the next commit replaces this with mountHybridSplit
-  // (split layout + matrix message preview pane fed by bridge.onStateEvent).
-  const wrap = document.createElement("div")
-  wrap.style.display = "flex"
-  wrap.style.height = "100%"
-
-  const leftPane = document.createElement("div")
-  leftPane.style.flex = "2"
-  leftPane.style.minWidth = "0"
-  wrap.appendChild(leftPane)
-
-  const rightPane = document.createElement("div")
-  rightPane.style.flex = "1"
-  rightPane.style.minWidth = "0"
-  rightPane.style.borderLeft = "1px solid #888"
-  rightPane.style.padding = "0.5em"
-  const chatTitle = document.createElement("h3")
-  chatTitle.textContent = "Chat"
-  rightPane.appendChild(chatTitle)
-  const chatStub = document.createElement("p")
-  chatStub.textContent =
-    "Hybrid chat surface placeholder; replaced in the next commit by a matrix.room.message preview pane. See spec section 8.3."
-  rightPane.appendChild(chatStub)
-  wrap.appendChild(rightPane)
-
-  root.appendChild(wrap)
-
-  if (!state.session) {
-    return
-  }
-  mountLibraryBrowser(leftPane, {
-    session: state.session,
-    onSelect: (item) => {
-      state.selectedItem = item
-      // For now hybrid still uses the Display surface for media playback.
-      state.variant = "shared-display"
-      state.uxMode = "display"
       renderStage(root, state)
     },
   })
