@@ -88,12 +88,18 @@
   if (_hasCesiumToken) {
     _viewerOpts.terrain = Cesium.Terrain.fromWorldTerrain();
   } else {
-    // Cesium's built-in default Ion token (baked into Cesium.js) still 401s
-    // when the user hasn't set their own. Suppress the default base imagery
-    // layer so we don't get console errors. The Carto dark-labels layer
-    // below provides place-name imagery and Photoreal 3D Tiles (when the
-    // Google key is set) provides the surface — neither needs Ion.
-    _viewerOpts.baseLayer = false;
+    // No Ion token — provide a free no-auth dark base layer so the globe
+    // has visible geography (otherwise: blank blue ellipsoid). Carto's
+    // basemap CDN serves OpenStreetMap-derived dark tiles; no key required.
+    _viewerOpts.baseLayer = new Cesium.ImageryLayer(
+      new Cesium.UrlTemplateImageryProvider({
+        url:          'https://{s}.basemaps.cartocdn.com/dark_nolabels/{z}/{x}/{y}.png',
+        subdomains:   ['a', 'b', 'c', 'd'],
+        minimumLevel: 0,
+        maximumLevel: 18,
+        credit:       'Map © OpenStreetMap contributors © CARTO',
+      })
+    );
   }
   var viewer = new Cesium.Viewer('cesiumContainer', _viewerOpts);
 
@@ -137,6 +143,27 @@
   WV.CctvPip.init();
   WV.SearchBar.init();
   WV.PlaceCard.init(viewer);
+
+  // ── DEFAULT LAYER SET ─────────────────────────────────────
+  // Auto-enable a curated set of no-auth layers on first launch so the user
+  // sees actual data the moment the page loads (instead of an empty globe
+  // until they hunt down toggles). Stored in localStorage so the user's
+  // own toggle choices stick on subsequent visits.
+  (function autoEnableDefaults() {
+    var FLAG = 'wv.defaults_applied';
+    if (localStorage.getItem(FLAG)) return;
+    var DEFAULTS = ['seismic', 'nws', 'satellites', 'nhc'];
+    DEFAULTS.forEach(function (layer) {
+      var row = document.querySelector('.layer-row[data-layer="' + layer + '"]');
+      if (!row) return;
+      var toggle = document.getElementById('toggle-' + layer);
+      if (!toggle || toggle.classList.contains('on')) return;
+      // Synthesise the existing click flow rather than calling the layer
+      // directly, so the layer-toggle UI stays in sync.
+      row.click();
+    });
+    try { localStorage.setItem(FLAG, '1'); } catch (e) {}
+  })();
 
   // ── 2D / 3D SCENE TOGGLE ─────────────────────────────────
   var starCanvas = document.querySelector('#cesiumContainer canvas[style*="z-index:0"]');
