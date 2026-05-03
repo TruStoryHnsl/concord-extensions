@@ -113,9 +113,9 @@
     },
     {
       "id": "com.concord.worldview-map",
-      "version": "0.1.0",
+      "version": "0.2.0",
       "name": "Worldview",
-      "description": "Cesium-based OSINT command-center: live flight tracking (OpenSky), maritime AIS (AISStream), traffic (TomTom), Sentinel imagery, weather (Windy), seismic events, and 6 more data layers \u2014 all on a 3D globe.",
+      "description": "Cesium-based OSINT command-center: live flight tracking (OpenSky), maritime AIS (AISStream), traffic (TomTom), Sentinel imagery, weather (Windy), seismic events, photoreal 3D globe (Google Map Tiles), Steel UI palette, plus 11 additional layers (Wildfires/FIRMS, Tropical cyclones/NHC, Launches/LaunchLib, Cloudflare outages, Air Quality + Pollen via Google, OSM Overpass ALPR, multi-DOT cameras, timezones, jamming, military, ports, satellites, and more) \u2014 all on a 3D globe. Includes safeguards (rate limit, quota, cache, health) and stream-health panel.",
       "pricing": "free",
       "modes": [
         "display"
@@ -125,8 +125,8 @@
         "fetch:external"
       ],
       "min_concord_version": "0.5.0",
-      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/worldview-map/com.concord.worldview-map@0.1.0.zip",
-      "bundle_size_bytes": 571486,
+      "bundle_url": "https://raw.githubusercontent.com/TruStoryHnsl/concord-extensions/main/packages/worldview-map/com.concord.worldview-map@0.2.0.zip",
+      "bundle_size_bytes": 822821,
       "needs_proxy": [
         "opensky",
         "sentinel",

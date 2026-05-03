@@ -1,7 +1,7 @@
 {
   "name": "@concord-ext/worldview-map",
   "private": true,
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Cesium-based OSINT command-center extension for Concord.",
   "type": "module",
   "scripts": {
