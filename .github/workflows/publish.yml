@@ -1,0 +1,74 @@
+name: Publish repo to GitHub Pages
+
+# Rebuild the concord-repo/v1 index from the bundles in the tree, verify it
+# end-to-end (schema + every SHA-384 integrity hash + signature), and deploy
+# the static repo to GitHub Pages. This is the canonical reference repo's CI;
+# forks get the same pipeline for free.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "**/bundle.zip"
+      - "repo.meta.json"
+      - "schema/**"
+      - "scripts/**"
+      - ".github/workflows/publish.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build-verify-deploy:
+    runs-on: ubuntu-latest
+    environment:
+      name: github-pages
+      url: ${{ steps.deploy.outputs.page_url }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+
+      - name: Build index (sign if key present)
+        env:
+          # Optional: set the CONCORD_REPO_SIGNING_KEY repository secret
+          # (base64 of a 32-byte Ed25519 seed) to produce a "verified" badge.
+          CONCORD_REPO_SIGNING_KEY: ${{ secrets.CONCORD_REPO_SIGNING_KEY }}
+        run: uv run --script scripts/build-index --root .
+
+      - name: Verify repo (schema + integrity + signature)
+        run: uv run --script scripts/verify-repo --root .
+
+      - name: Assemble Pages artifact
+        run: |
+          set -euo pipefail
+          mkdir -p _site
+          # Ship only the static repo surface; leave sources/tests behind.
+          cp -r .well-known _site/.well-known
+          cp index.json _site/index.json
+          cp -r assets _site/assets
+          cp -r schema _site/schema
+          # Copy every extension's <id>/<version>/{bundle.zip,manifest.json}.
+          for d in com.*/ ; do
+            [ -d "$d" ] && cp -r "$d" "_site/$d"
+          done
+          # GitHub Pages serves dotfile dirs only if .nojekyll is present.
+          touch _site/.nojekyll
+          ls -R _site | head -40
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: _site
+
+      - name: Deploy to GitHub Pages
+        id: deploy
+        uses: actions/deploy-pages@v4

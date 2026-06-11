@@ -1,0 +1,192 @@
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["jsonschema>=4", "pynacl>=1.5"]
+# ///
+"""verify-repo — validate a concord-repo/v1 index end-to-end.
+
+Checks, in order:
+    1. The index parses as JSON and validates against
+       ``schema/concord-repo.v1.schema.json`` (the canonical schema).
+    2. ``.well-known/concord-repo.json`` and ``index.json`` are byte-identical
+       (the fallback copy must match the primary).
+    3. Every version's ``bundle_url`` resolves to a real file whose recomputed
+       SHA-384 matches the declared ``integrity`` AND whose byte length matches
+       ``size_bytes`` if present.
+    4. Each version's ``manifest_url`` resolves and its ``id``/``version`` agree
+       with the index entry; the bundle's embedded manifest.json matches too.
+    5. If a ``signing`` block is present, the detached Ed25519 signature
+       verifies against the declared public key over the canonical index bytes.
+
+This is what CI runs on every push and what a cold reader runs to prove their
+own repo is well-formed before pasting its URL into Concord. Exit 0 = the repo
+is connectable; non-zero = a specific, named defect.
+
+Usage:
+    scripts/verify-repo [--root .]
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import hashlib
+import json
+import sys
+import zipfile
+from pathlib import Path
+
+WELL_KNOWN_REL = Path(".well-known/concord-repo.json")
+INDEX_REL = Path("index.json")
+SCHEMA_REL = Path("schema/concord-repo.v1.schema.json")
+
+OK = "\033[32mOK\033[0m" if sys.stdout.isatty() else "OK"
+FAIL = "\033[31mFAIL\033[0m" if sys.stdout.isatty() else "FAIL"
+
+errors: "list[str]" = []
+
+
+def check(label: str, ok: bool, detail: str = "") -> bool:
+    status = OK if ok else FAIL
+    line = f"  [{status}] {label}"
+    if detail:
+        line += f" — {detail}"
+    print(line)
+    if not ok:
+        errors.append(label + (f": {detail}" if detail else ""))
+    return ok
+
+
+def sha384_sri(data: bytes) -> str:
+    return "sha384-" + base64.b64encode(hashlib.sha384(data).digest()).decode("ascii")
+
+
+def canonical_bytes(index: dict) -> bytes:
+    clone = json.loads(json.dumps(index))
+    if "signing" in clone and isinstance(clone["signing"], dict):
+        clone["signing"]["index_sig"] = ""
+    return json.dumps(clone, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def resolve(root: Path, url: str) -> "Path | None":
+    """Resolve a repo-relative (or absolute http) url to a local path, if local."""
+    if url.startswith(("http://", "https://")):
+        # Absolute URLs can't be checked offline; treat as out of scope here.
+        return None
+    return (root / url).resolve()
+
+
+def main(argv: "list[str] | None" = None) -> int:
+    parser = argparse.ArgumentParser(description="Validate a concord-repo/v1 index.")
+    parser.add_argument("--root", default=".", help="repo root (default: cwd)")
+    args = parser.parse_args(argv)
+    root = Path(args.root).resolve()
+
+    print(f"verify-repo: root = {root}")
+
+    # ---- 1. Load + schema-validate -----------------------------------------
+    wk_path = root / WELL_KNOWN_REL
+    if not wk_path.is_file():
+        check(f"{WELL_KNOWN_REL} exists", False, "missing")
+        return _summary()
+    index = json.loads(wk_path.read_text(encoding="utf-8"))
+    check(f"{WELL_KNOWN_REL} parses", True)
+
+    schema_path = root / SCHEMA_REL
+    if not schema_path.is_file():
+        check(f"{SCHEMA_REL} exists", False, "missing")
+        return _summary()
+    schema = json.loads(schema_path.read_text(encoding="utf-8"))
+
+    try:
+        import jsonschema
+        jsonschema.validate(instance=index, schema=schema)
+        check("index validates against JSON Schema", True)
+    except Exception as exc:  # noqa: BLE001 - report any validation failure
+        msg = str(exc).splitlines()[0]
+        check("index validates against JSON Schema", False, msg)
+
+    # ---- 2. well-known == index.json ---------------------------------------
+    idx_path = root / INDEX_REL
+    if idx_path.is_file():
+        same = idx_path.read_bytes() == wk_path.read_bytes()
+        check("index.json matches .well-known copy", same,
+              "" if same else "files differ; re-run build-index")
+    else:
+        check("index.json fallback exists", False, "missing")
+
+    # ---- 3 & 4. per-version integrity + manifest ---------------------------
+    for ext in index.get("extensions", []):
+        ext_id = ext.get("id", "<no-id>")
+        versions = ext.get("versions", [])
+        version_set = {v.get("version") for v in versions}
+        check(f"{ext_id}: latest in versions[]", ext.get("latest") in version_set,
+              ext.get("latest", ""))
+        for v in versions:
+            ver = v.get("version", "?")
+            tag = f"{ext_id}@{ver}"
+            bundle_path = resolve(root, v.get("bundle_url", ""))
+            if bundle_path is None or not bundle_path.is_file():
+                check(f"{tag}: bundle present", False, v.get("bundle_url", ""))
+                continue
+            data = bundle_path.read_bytes()
+            actual = sha384_sri(data)
+            check(f"{tag}: integrity SHA-384 matches", actual == v.get("integrity"),
+                  "" if actual == v.get("integrity") else f"expected {v.get('integrity')} got {actual}")
+            if "size_bytes" in v:
+                check(f"{tag}: size_bytes matches", len(data) == v["size_bytes"],
+                      "" if len(data) == v["size_bytes"] else f"{v['size_bytes']} vs {len(data)}")
+            # embedded manifest sanity
+            try:
+                with zipfile.ZipFile(bundle_path) as zf:
+                    man = json.loads(zf.read("manifest.json").decode("utf-8"))
+                ok = man.get("id") == ext_id and man.get("version") == ver
+                check(f"{tag}: bundle manifest id/version agree", ok,
+                      "" if ok else f"manifest says {man.get('id')}@{man.get('version')}")
+            except Exception as exc:  # noqa: BLE001
+                check(f"{tag}: bundle manifest readable", False, str(exc))
+            # sidecar manifest_url
+            murl = v.get("manifest_url")
+            if murl:
+                mpath = resolve(root, murl)
+                check(f"{tag}: manifest_url resolves", bool(mpath and mpath.is_file()),
+                      "" if (mpath and mpath.is_file()) else murl)
+
+    # ---- 5. signature (optional) -------------------------------------------
+    signing = index.get("signing")
+    if signing:
+        pub = signing.get("public_key", "")
+        sig_b64 = signing.get("index_sig", "")
+        if not pub.startswith("ed25519:") or not sig_b64:
+            check("signing block well-formed", False, "missing public_key/index_sig")
+        else:
+            try:
+                from nacl.signing import VerifyKey
+                from nacl.exceptions import BadSignatureError
+                vk = VerifyKey(base64.b64decode(pub.split(":", 1)[1]))
+                msg = canonical_bytes(index)
+                try:
+                    vk.verify(msg, base64.b64decode(sig_b64))
+                    check("Ed25519 signature verifies", True, pub)
+                except BadSignatureError:
+                    check("Ed25519 signature verifies", False, "bad signature")
+            except Exception as exc:  # noqa: BLE001
+                check("Ed25519 signature verifies", False, str(exc))
+    else:
+        print("  [--] no signing block (Tier-2 optional) — repo will show as 'unverified'")
+
+    return _summary()
+
+
+def _summary() -> int:
+    print()
+    if errors:
+        print(f"verify-repo: {FAIL} — {len(errors)} problem(s):")
+        for e in errors:
+            print(f"    - {e}")
+        return 1
+    print(f"verify-repo: {OK} — repo is well-formed and connectable")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

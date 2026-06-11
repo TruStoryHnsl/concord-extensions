@@ -1,0 +1,258 @@
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = ["pynacl>=1.5"]
+# ///
+"""build-index — generate a ``concord-repo/v1`` index from the bundles on disk.
+
+Walks every ``<ext-id>/<version>/bundle.zip`` under the repo root, reads each
+bundle's embedded ``manifest.json`` (the authoritative source), computes the
+mandatory SHA-384 Subresource-Integrity string over the exact bundle bytes,
+fills ``size_bytes`` / ``released_at``, and emits:
+
+    .well-known/concord-repo.json   (primary well-known path)
+    index.json                      (identical fallback copy)
+
+Per-extension display metadata (name, summary, icon, tags, author, latest)
+comes from an optional ``repo.meta.json`` at the repo root; anything not
+provided there falls back to values read from the bundle manifest.
+
+Tier-2 signing: if an Ed25519 private key is supplied (``--sign-key`` file or
+``$CONCORD_REPO_SIGNING_KEY`` env var, base64 of the 32-byte seed), the script
+adds a ``signing`` block with the public key and a detached signature over the
+*canonical* index bytes (index serialised with ``index_sig`` blanked and all
+keys sorted). Signing never gates install; it only drives the trust badge.
+
+Authors NEVER hand-maintain hashes or sizes -- this script is the single
+source of truth for them.
+
+Usage:
+    scripts/build-index [--root .] [--sign-key path/to/seed.b64] [--check]
+"""
+from __future__ import annotations
+
+import argparse
+import base64
+import datetime as dt
+import hashlib
+import json
+import os
+import sys
+import zipfile
+from pathlib import Path
+
+WELL_KNOWN_REL = Path(".well-known/concord-repo.json")
+INDEX_REL = Path("index.json")
+META_REL = Path("repo.meta.json")
+
+# Directories that are never extension roots even if they happen to contain a zip.
+SKIP_DIRS = {
+    ".git", ".github", ".well-known", "assets", "schema", "scripts",
+    "docs", "examples", "node_modules", "packages",
+}
+
+
+def die(msg: str) -> "None":
+    print(f"build-index: error: {msg}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def sha384_sri(data: bytes) -> str:
+    digest = hashlib.sha384(data).digest()
+    return "sha384-" + base64.b64encode(digest).decode("ascii")
+
+
+def rfc3339(ts: float) -> str:
+    return dt.datetime.fromtimestamp(ts, dt.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+
+def read_bundle_manifest(bundle: Path) -> dict:
+    with zipfile.ZipFile(bundle) as zf:
+        if "manifest.json" not in zf.namelist():
+            die(f"{bundle} has no manifest.json at its root")
+        return json.loads(zf.read("manifest.json").decode("utf-8"))
+
+
+def discover_bundles(root: Path) -> "dict[str, dict[str, Path]]":
+    """Return {ext_id: {version: bundle_path}} by walking <id>/<ver>/bundle.zip."""
+    found: "dict[str, dict[str, Path]]" = {}
+    for bundle in sorted(root.rglob("bundle.zip")):
+        rel = bundle.relative_to(root)
+        if rel.parts[0] in SKIP_DIRS:
+            continue
+        if len(rel.parts) != 3:
+            # Expect exactly <ext-id>/<version>/bundle.zip
+            continue
+        ext_id, version, _ = rel.parts
+        found.setdefault(ext_id, {})[version] = bundle
+    return found
+
+
+def semver_key(version: str):
+    """Crude SemVer sort key: numeric core descending, pre-release after release."""
+    core, _, pre = version.partition("-")
+    parts = []
+    for piece in core.split("."):
+        parts.append(int(piece) if piece.isdigit() else 0)
+    while len(parts) < 3:
+        parts.append(0)
+    # A release (no pre-release) outranks a pre-release of the same core.
+    return (parts[0], parts[1], parts[2], pre == "", pre)
+
+
+def load_meta(root: Path) -> dict:
+    meta_path = root / META_REL
+    if meta_path.is_file():
+        return json.loads(meta_path.read_text(encoding="utf-8"))
+    return {}
+
+
+def build_extension_entry(ext_id: str, versions: "dict[str, Path]", ext_meta: dict) -> dict:
+    version_objs = []
+    sorted_versions = sorted(versions.keys(), key=semver_key, reverse=True)
+    latest_manifest = None
+    for version in sorted_versions:
+        bundle = versions[version]
+        data = bundle.read_bytes()
+        manifest = read_bundle_manifest(bundle)
+        if manifest.get("id") != ext_id:
+            die(f"{bundle}: manifest id '{manifest.get('id')}' != directory id '{ext_id}'")
+        if manifest.get("version") != version:
+            die(f"{bundle}: manifest version '{manifest.get('version')}' != directory '{version}'")
+        if latest_manifest is None:
+            latest_manifest = manifest
+        base = ext_id  # repo-relative bundle_url for portability
+        vobj = {
+            "version": version,
+            "bundle_url": f"{base}/{version}/bundle.zip",
+            "integrity": sha384_sri(data),
+            "manifest_url": f"{base}/{version}/manifest.json",
+            "permissions": manifest.get("permissions", []),
+            "size_bytes": len(data),
+            "released_at": rfc3339(bundle.stat().st_mtime),
+        }
+        mcv = manifest.get("minConcordVersion") or manifest.get("min_concord_version")
+        if mcv:
+            vobj["min_concord_version"] = mcv
+        # Also drop a manifest.json next to the bundle for manifest_url to resolve.
+        (bundle.parent / "manifest.json").write_text(
+            json.dumps(manifest, indent=2, ensure_ascii=False) + "\n", encoding="utf-8"
+        )
+        version_objs.append(vobj)
+
+    assert latest_manifest is not None
+    entry = {
+        "id": ext_id,
+        "name": ext_meta.get("name") or latest_manifest.get("name", ext_id),
+        "latest": sorted_versions[0],
+        "versions": version_objs,
+    }
+    for opt in ("icon", "summary", "author", "tags"):
+        if opt in ext_meta:
+            entry[opt] = ext_meta[opt]
+    if "summary" not in entry and latest_manifest.get("description"):
+        entry["summary"] = latest_manifest["description"]
+    return entry
+
+
+def canonical_bytes(index: dict) -> bytes:
+    """Canonical signing input: index_sig blanked, all keys sorted, compact."""
+    clone = json.loads(json.dumps(index))  # deep copy
+    if "signing" in clone and isinstance(clone["signing"], dict):
+        clone["signing"]["index_sig"] = ""
+    return json.dumps(clone, sort_keys=True, separators=(",", ":")).encode("utf-8")
+
+
+def load_signing_key(arg_path: "str | None") -> "bytes | None":
+    raw = None
+    if arg_path:
+        raw = Path(arg_path).read_text(encoding="utf-8").strip()
+    elif os.environ.get("CONCORD_REPO_SIGNING_KEY"):
+        raw = os.environ["CONCORD_REPO_SIGNING_KEY"].strip()
+    if not raw:
+        return None
+    seed = base64.b64decode(raw)
+    if len(seed) != 32:
+        die(f"signing key must decode to 32 bytes (got {len(seed)})")
+    return seed
+
+
+def sign_index(index: dict, seed: bytes) -> dict:
+    from nacl.signing import SigningKey
+
+    sk = SigningKey(seed)
+    pub_b64 = base64.b64encode(bytes(sk.verify_key)).decode("ascii")
+    index["signing"] = {"public_key": f"ed25519:{pub_b64}", "index_sig": ""}
+    msg = canonical_bytes(index)
+    sig = sk.sign(msg).signature
+    index["signing"]["index_sig"] = base64.b64encode(sig).decode("ascii")
+    print(f"build-index: signed with ed25519:{pub_b64}")
+    return index
+
+
+def main(argv: "list[str] | None" = None) -> int:
+    parser = argparse.ArgumentParser(description="Build a concord-repo/v1 index from bundles on disk.")
+    parser.add_argument("--root", default=".", help="repo root (default: cwd)")
+    parser.add_argument("--sign-key", help="path to base64 Ed25519 seed (32 bytes); else $CONCORD_REPO_SIGNING_KEY")
+    parser.add_argument("--check", action="store_true", help="fail if generated index differs from on-disk")
+    args = parser.parse_args(argv)
+
+    root = Path(args.root).resolve()
+    meta = load_meta(root)
+    bundles = discover_bundles(root)
+    if not bundles:
+        die("no <id>/<version>/bundle.zip found; run package-extension first")
+
+    ext_meta_map = {e["id"]: e for e in meta.get("extensions", []) if "id" in e}
+    extensions = []
+    for ext_id in sorted(bundles):
+        extensions.append(build_extension_entry(ext_id, bundles[ext_id], ext_meta_map.get(ext_id, {})))
+
+    index = {
+        "schema": "concord-repo/v1",
+        "repo_id": meta.get("repo_id", "concord-extensions"),
+        "name": meta.get("name", "Concord Extensions"),
+    }
+    for opt in ("description", "homepage", "icon", "maintainer"):
+        if opt in meta:
+            index[opt] = meta[opt]
+    index["updated_at"] = rfc3339(dt.datetime.now(dt.timezone.utc).timestamp())
+    index["extensions"] = extensions
+
+    seed = load_signing_key(args.sign_key)
+    if seed is not None:
+        index = sign_index(index, seed)
+
+    rendered = json.dumps(index, indent=2, ensure_ascii=False) + "\n"
+
+    if args.check:
+        existing = (root / WELL_KNOWN_REL)
+        if not existing.is_file():
+            die("--check: .well-known/concord-repo.json does not exist")
+        # Compare ignoring the volatile updated_at + signature fields.
+        def normalise(obj):
+            obj = json.loads(json.dumps(obj))
+            obj.pop("updated_at", None)
+            for e in obj.get("extensions", []):
+                for v in e.get("versions", []):
+                    v.pop("released_at", None)
+            obj.pop("signing", None)
+            return obj
+        on_disk = json.loads(existing.read_text(encoding="utf-8"))
+        if normalise(on_disk) != normalise(index):
+            die("--check: on-disk index is stale; re-run build-index")
+        print("build-index: --check OK (on-disk index matches bundles)")
+        return 0
+
+    (root / WELL_KNOWN_REL).parent.mkdir(parents=True, exist_ok=True)
+    (root / WELL_KNOWN_REL).write_text(rendered, encoding="utf-8")
+    (root / INDEX_REL).write_text(rendered, encoding="utf-8")
+
+    n_versions = sum(len(e["versions"]) for e in extensions)
+    print(f"build-index: wrote {WELL_KNOWN_REL} + {INDEX_REL}")
+    print(f"build-index: {len(extensions)} extension(s), {n_versions} version(s)")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())

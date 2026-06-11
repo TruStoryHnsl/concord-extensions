@@ -19,6 +19,32 @@ What ships in this repo today:
 
 Install = API call + file write. No Concord rebuild. No server restart. Ever.
 
+## Repository protocol (`concord-repo/v1`)
+
+This repo is also the **canonical reference for Concord's open repository
+protocol** — the contract that lets *anyone* host a connectable extension repo,
+not just this one. A repo is nothing but static files: a JSON index at
+`/.well-known/concord-repo.json` plus integrity-hashed bundle zips. Concord
+fetches the index, verifies SHA-384 integrity on every bundle, and optionally
+checks an Ed25519 signature for a "verified" trust badge.
+
+- **`.well-known/concord-repo.json`** + **`index.json`** — the generated index
+  (schema `concord-repo/v1`).
+- **`schema/concord-repo.v1.schema.json`** — the canonical machine-checkable schema.
+- **`scripts/package-extension`** — zip an extension source dir into a bundle.
+- **`scripts/build-index`** — walk bundles, compute SHA-384, fill sizes, sign.
+- **`scripts/verify-repo`** — validate the index against the schema + re-check
+  every integrity hash + verify the signature.
+- **`examples/com.concord.hello-panel/`** — the smallest complete extension.
+- **`.github/workflows/publish.yml`** — build + verify + deploy to GitHub Pages.
+
+**To stand up your own repo, read [`BUILD-YOUR-OWN-REPO.md`](BUILD-YOUR-OWN-REPO.md).**
+That guide is the proof the architecture is complete: a cold reader, using only
+free tools, can fork this, drop in an extension, and connect it to Concord.
+
+> The legacy `catalog.json` (the flat first-party discovery list) and the new
+> `concord-repo/v1` index coexist — the protocol layer is purely additive.
+
 ## Why
 
 > "Concord is infrastructure."
@@ -190,4 +216,4 @@ Concord-side runtime loader (Phase 1: API endpoints, DB registry, BrowserSurface
 
 ## License
 
-See [LICENSE](LICENSE).
+MIT — see [LICENSE](LICENSE).

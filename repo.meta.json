@@ -1,0 +1,31 @@
+{
+  "repo_id": "concord-extensions",
+  "name": "Concord Extensions",
+  "description": "The canonical reference repository for Concord community extensions. Fork it to publish your own.",
+  "homepage": "https://github.com/TruStoryHnsl/concord-extensions",
+  "icon": "assets/repo-icon.png",
+  "maintainer": "TruStoryHnsl",
+  "extensions": [
+    {
+      "id": "com.concord.hello-panel",
+      "icon": "extension",
+      "summary": "The smallest real Concord extension — a greeting panel with a click counter. The starting template for your own extension.",
+      "author": "Concord",
+      "tags": ["example", "template", "starter"]
+    },
+    {
+      "id": "com.concord.werewolf",
+      "icon": "groups",
+      "summary": "Public-domain social-deduction game. Villagers vs. Werewolves — survive the night, lynch the wolves by day.",
+      "author": "Concord",
+      "tags": ["game", "party", "social-deduction"]
+    },
+    {
+      "id": "com.concord.game-maker",
+      "icon": "casino",
+      "summary": "Host extension for the Chat & Hybrid Game Maker Protocol. Loads .game documents as a narrator/referee.",
+      "author": "Concord",
+      "tags": ["game", "chat", "host"]
+    }
+  ]
+}

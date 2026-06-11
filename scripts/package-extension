@@ -1,0 +1,119 @@
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.9"
+# dependencies = []
+# ///
+"""package-extension — zip an extension source directory into a Concord bundle.
+
+A Concord bundle is a flat .zip whose root contains a valid ``manifest.json``
+(with ``id`` / ``version`` / ``entry`` / ``permissions``) plus the ``entry``
+file and any assets it needs. This is byte-for-byte what the Concord server's
+``POST /api/extensions/install`` pipeline already consumes.
+
+Usage:
+    scripts/package-extension <src-dir> [--out-root <repo-root>]
+
+Behaviour:
+    * Reads ``<src-dir>/manifest.json`` to learn the extension ``id`` and
+      ``version``.
+    * Validates the manifest carries the four required keys and that ``entry``
+      exists inside ``<src-dir>``.
+    * Writes a deterministic zip (sorted entries, fixed timestamps) to
+      ``<out-root>/<id>/<version>/bundle.zip`` so identical inputs always
+      produce identical bytes -> stable SHA-384 integrity hashes.
+
+The deterministic packing matters: ``build-index`` hashes the bytes this
+script emits, so reproducibility keeps integrity strings stable across
+machines and CI runs.
+"""
+from __future__ import annotations
+
+import argparse
+import json
+import sys
+import zipfile
+from pathlib import Path
+
+REQUIRED_MANIFEST_KEYS = ("id", "version", "entry", "permissions")
+# A single fixed DOS timestamp (1980-01-01 00:00:00) for reproducible zips.
+FIXED_DATE_TIME = (1980, 1, 1, 0, 0, 0)
+
+
+def die(msg: str) -> "None":
+    print(f"package-extension: error: {msg}", file=sys.stderr)
+    raise SystemExit(1)
+
+
+def load_manifest(src: Path) -> dict:
+    manifest_path = src / "manifest.json"
+    if not manifest_path.is_file():
+        die(f"no manifest.json in {src}")
+    try:
+        manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
+    except json.JSONDecodeError as exc:
+        die(f"manifest.json is not valid JSON: {exc}")
+    missing = [k for k in REQUIRED_MANIFEST_KEYS if k not in manifest]
+    if missing:
+        die(f"manifest.json missing required key(s): {', '.join(missing)}")
+    if not isinstance(manifest["permissions"], list):
+        die("manifest 'permissions' must be an array")
+    entry = manifest["entry"]
+    if not (src / entry).is_file():
+        die(f"manifest 'entry' file not found: {entry}")
+    return manifest
+
+
+def iter_files(src: Path):
+    for path in sorted(src.rglob("*")):
+        if path.is_file():
+            yield path
+
+
+def build_bundle(src: Path, out_root: Path) -> Path:
+    manifest = load_manifest(src)
+    ext_id = manifest["id"]
+    version = manifest["version"]
+    out_dir = out_root / ext_id / version
+    out_dir.mkdir(parents=True, exist_ok=True)
+    bundle_path = out_dir / "bundle.zip"
+
+    with zipfile.ZipFile(bundle_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
+        for path in iter_files(src):
+            arcname = path.relative_to(src).as_posix()
+            info = zipfile.ZipInfo(arcname, date_time=FIXED_DATE_TIME)
+            info.compress_type = zipfile.ZIP_DEFLATED
+            info.external_attr = 0o644 << 16
+            zf.writestr(info, path.read_bytes())
+
+    # Sanity: the bundle must contain manifest.json at its root.
+    with zipfile.ZipFile(bundle_path) as zf:
+        if "manifest.json" not in zf.namelist():
+            bundle_path.unlink(missing_ok=True)
+            die("packed bundle is missing manifest.json at its root")
+
+    size = bundle_path.stat().st_size
+    print(f"package-extension: wrote {bundle_path} ({size} bytes)")
+    print(f"package-extension: id={ext_id} version={version}")
+    return bundle_path
+
+
+def main(argv: "list[str] | None" = None) -> int:
+    parser = argparse.ArgumentParser(description="Zip an extension source dir into a Concord bundle.")
+    parser.add_argument("src", help="extension source directory (contains manifest.json + entry)")
+    parser.add_argument(
+        "--out-root",
+        default=".",
+        help="repo root where <id>/<version>/bundle.zip is written (default: cwd)",
+    )
+    args = parser.parse_args(argv)
+
+    src = Path(args.src).resolve()
+    if not src.is_dir():
+        die(f"source directory not found: {src}")
+    out_root = Path(args.out_root).resolve()
+    build_bundle(src, out_root)
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
