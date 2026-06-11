@@ -1,0 +1,101 @@
+{
+  "schema": "concord-repo/v1",
+  "repo_id": "concord-extensions",
+  "name": "Concord Extensions",
+  "description": "The canonical reference repository for Concord community extensions. Fork it to publish your own.",
+  "homepage": "https://github.com/TruStoryHnsl/concord-extensions",
+  "icon": "assets/repo-icon.png",
+  "maintainer": "TruStoryHnsl",
+  "updated_at": "2026-06-11T01:33:29Z",
+  "extensions": [
+    {
+      "id": "com.concord.game-maker",
+      "name": "Game Maker",
+      "latest": "0.1.0",
+      "versions": [
+        {
+          "version": "0.1.0",
+          "bundle_url": "com.concord.game-maker/0.1.0/bundle.zip",
+          "integrity": "sha384-8Eu8gq4MU/46AvBDR+qQLWP5z9nYp9Kvw+xTBKm2eLKRbNTXCevw2RU0E3DGhls2",
+          "manifest_url": "com.concord.game-maker/0.1.0/manifest.json",
+          "permissions": [
+            "state_events",
+            "matrix.read",
+            "matrix.send",
+            "matrix.send_to_device"
+          ],
+          "size_bytes": 7387,
+          "released_at": "2026-06-11T01:30:24Z",
+          "min_concord_version": "0.1.0"
+        }
+      ],
+      "icon": "casino",
+      "summary": "Host extension for the Chat & Hybrid Game Maker Protocol. Loads .game documents as a narrator/referee.",
+      "author": "Concord",
+      "tags": [
+        "game",
+        "chat",
+        "host"
+      ]
+    },
+    {
+      "id": "com.concord.hello-panel",
+      "name": "Hello Panel",
+      "latest": "1.0.0",
+      "versions": [
+        {
+          "version": "1.0.0",
+          "bundle_url": "com.concord.hello-panel/1.0.0/bundle.zip",
+          "integrity": "sha384-7oDNDE9NFqKqWBMm98jzs9Bi48LCWyJVvljxZsgiMjDZpMFVsCXMoBz+hExrWhaU",
+          "manifest_url": "com.concord.hello-panel/1.0.0/manifest.json",
+          "permissions": [],
+          "size_bytes": 1640,
+          "released_at": "2026-06-11T01:30:58Z",
+          "min_concord_version": "0.1.0"
+        }
+      ],
+      "icon": "extension",
+      "summary": "The smallest real Concord extension — a greeting panel with a click counter. The starting template for your own extension.",
+      "author": "Concord",
+      "tags": [
+        "example",
+        "template",
+        "starter"
+      ]
+    },
+    {
+      "id": "com.concord.werewolf",
+      "name": "Werewolf",
+      "latest": "0.4.0",
+      "versions": [
+        {
+          "version": "0.4.0",
+          "bundle_url": "com.concord.werewolf/0.4.0/bundle.zip",
+          "integrity": "sha384-HqZNG5PfrSh5IJAoozg49RtdN6b8S2gsOt3sXMoKz8ifg9arIoX4zIoy2KKLNviH",
+          "manifest_url": "com.concord.werewolf/0.4.0/manifest.json",
+          "permissions": [
+            "state_events",
+            "send_to_device",
+            "matrix.read",
+            "matrix.send"
+          ],
+          "size_bytes": 7585,
+          "released_at": "2026-06-11T01:30:24Z",
+          "min_concord_version": "0.1.0"
+        }
+      ],
+      "icon": "groups",
+      "summary": "Public-domain social-deduction game. Villagers vs. Werewolves — survive the night, lynch the wolves by day.",
+      "author": "Concord",
+      "tags": [
+        "game",
+        "party",
+        "social-deduction"
+      ]
+    }
+  ],
+  "signing": {
+    "public_key": "ed25519:TzIcdGXD8cJoK43lgRR1wrtRaZGQtEGO+AH1psYDUq0=",
+    "index_sig": "4AugaKEDefhXuI+BWqzzl6PhoYyLUSTMi/IattR5cSQ+tAQHQFpnkfyOJKYwIAsEJSb/g+6HFc5QH60lyN6wAQ=="
+  }
+}

@@ -1,0 +1,10 @@
+{
+  "id": "com.concord.hello-panel",
+  "version": "1.0.0",
+  "name": "Hello Panel",
+  "description": "The smallest real Concord extension: a panel that greets the room and echoes a click count. Use it as the starting template for your own extension.",
+  "entry": "index.html",
+  "permissions": [],
+  "modes": ["display"],
+  "minConcordVersion": "0.1.0"
+}

@@ -85,6 +85,31 @@ The Phase 0 scaffold and design spec are at `docs/superpowers/specs/2026-04-17-c
 
 Coordinate with the maintainer before starting — first-party extensions are scope-scoped, and overlap kills momentum.
 
+## The repository protocol (`concord-repo/v1`)
+
+This repo doubles as the reference implementation of Concord's open repository
+protocol. If you're touching the protocol surface (the index, schema, scripts,
+or publish workflow) rather than an individual extension:
+
+- The generated index lives at `.well-known/concord-repo.json` (+ `index.json`
+  copy). **Never hand-edit it** — regenerate with `scripts/build-index`.
+- Per-extension display metadata is `repo.meta.json`. Bundle integrity hashes,
+  sizes, and timestamps are computed by `build-index`; don't hand-maintain them.
+- The canonical schema is `schema/concord-repo.v1.schema.json` (mirrored from
+  Concord's `server/schemas/`). Keep it in sync if the protocol version bumps.
+- Before pushing protocol changes, run the full gate:
+  ```sh
+  uv run --script scripts/build-index --root .
+  uv run --script scripts/verify-repo --root .
+  ```
+  `verify-repo` must exit `0` (schema valid + every SHA-384 matches + signature
+  verifies). CI (`.github/workflows/publish.yml`) runs the same gate.
+- To stand up or test a fork of this repo, follow
+  [`BUILD-YOUR-OWN-REPO.md`](BUILD-YOUR-OWN-REPO.md).
+
+The tooling uses [`uv`](https://docs.astral.sh/uv/) so script dependencies
+install automatically — no manual `pip install`.
+
 ## Code of conduct
 
 Be direct. Don't waste anyone's tokens. Marketing voice gets rewritten.

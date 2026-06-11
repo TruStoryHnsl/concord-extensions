@@ -1,0 +1,75 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Hello Panel</title>
+    <style>
+      :root { color-scheme: dark; }
+      html, body {
+        margin: 0;
+        height: 100%;
+        font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+        background: #14161b;
+        color: #e7e9ee;
+      }
+      main {
+        height: 100%;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        gap: 1.25rem;
+        text-align: center;
+        padding: 2rem;
+        box-sizing: border-box;
+      }
+      h1 { margin: 0; font-size: clamp(1.4rem, 4vw, 2.4rem); }
+      p { margin: 0; opacity: 0.75; max-width: 36ch; line-height: 1.5; }
+      button {
+        font: inherit;
+        padding: 0.65rem 1.4rem;
+        border: 1px solid #3a3f4b;
+        border-radius: 0.6rem;
+        background: #232733;
+        color: #e7e9ee;
+        cursor: pointer;
+        transition: background 0.12s ease;
+      }
+      button:hover { background: #2c313f; }
+      .count { font-variant-numeric: tabular-nums; font-weight: 600; }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Hello from Concord</h1>
+      <p>
+        This panel is a complete, sandboxed Concord extension. It runs in an
+        iframe with no special permissions and talks to the shell only over
+        <code>postMessage</code>.
+      </p>
+      <button id="poke" type="button">
+        Clicked <span class="count" id="count">0</span> time(s)
+      </button>
+    </main>
+    <script>
+      // Minimal, dependency-free entry. Renders something the user can SEE and
+      // interact with, proving the bundle is a working extension end-to-end.
+      var clicks = 0;
+      var countEl = document.getElementById("count");
+      document.getElementById("poke").addEventListener("click", function () {
+        clicks += 1;
+        countEl.textContent = String(clicks);
+      });
+
+      // Announce readiness to the Concord shell per the postMessage contract.
+      // The shell ignores messages it doesn't recognise, so this is safe even
+      // when the panel is opened standalone (e.g. during local testing).
+      try {
+        window.parent.postMessage({ type: "concord:ready", id: "com.concord.hello-panel" }, "*");
+      } catch (e) {
+        /* standalone preview — no parent shell, ignore */
+      }
+    </script>
+  </body>
+</html>
